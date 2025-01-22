@@ -10,6 +10,9 @@ import Foundation
 @MainActor
 class CardsViewModel: ObservableObject {
     @Published var cardModels = [CardModel]()
+    // SwipeAction型で、カードのスワイプ操作「いいね」や「拒否」の状態を保持する
+    @Published var buttonSwipeAction: SwipeAction?
+    
     private let service: CardService
     // 一時的に削除されたカードを保存する配列
     private var removedCards: [CardModel] = []
