@@ -15,11 +15,16 @@ struct CardView: View {
     
     var body: some View {
         ZStack (alignment: .bottom){
-            Image(model.store.profileImageURLs[currentImageIndex])
-                .resizable()
-                .scaledToFill()
-                .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
-                .clipped()
+            ZStack (alignment: .top) {
+                Image(model.store.profileImageURLs[currentImageIndex])
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
+                    .clipped()
+            }
+            StoreInfoView(store: store)
+                .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
+                .padding(.horizontal)
         }
     }
 }
