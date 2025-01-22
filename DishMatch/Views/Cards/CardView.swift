@@ -21,6 +21,9 @@ struct CardView: View {
                     .scaledToFill()
                     .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
                     .clipped()
+                    .overlay {
+                        ImageScrollingOverlay(currentImageIndex: $currentImageIndex, imagecount: imageCount)
+                    }
             }
             StoreInfoView(store: store)
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
