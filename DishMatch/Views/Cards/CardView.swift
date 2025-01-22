@@ -33,8 +33,19 @@ struct CardView: View {
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
                 .padding(.horizontal)
         }
+        .onReceive(viewModel.$buttonSwipeAction, perform: { action in
+            onReceiveSwipeAction(action)
+        })
+        .offset(x: xOffset)
         .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .rotationEffect(.degrees(degrees))
+        .animation(.snappy, value: xOffset)
+        .gesture(
+            DragGesture()
+                .onChanged(onDragChanged)
+                .onEnded(onDragEnded)
+        )
     }
 }
 
