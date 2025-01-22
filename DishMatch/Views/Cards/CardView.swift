@@ -8,11 +8,18 @@
 import SwiftUI
 
 struct CardView: View {
+    
+    @State private var currentImageIndex: Int = 0
+    
+    let model: CardModel
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        ZStack (alignment: .bottom){
+            Image(model.store.profileImageURLs[currentImageIndex])
+        }
     }
 }
 
 #Preview {
-    CardView()
+    CardView(model: CardModel(store: MockData.stores[0]))
 }
