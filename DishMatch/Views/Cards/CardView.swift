@@ -88,6 +88,14 @@ private extension CardView {
         }
     }
 }
+private extension CardView {
+    /// ドラッグ中の変化を処理
+    func onDragChanged(_ value: _ChangedGesture<DragGesture>.Value) {
+        // ドラッグの移動に応じてカードの位置と回転を更新
+        xOffset = value.translation.width
+        degrees = Double(value.translation.width / 25)
+    }
+}
 
 #Preview {
     CardView(viewModel: CardsViewModel(service: CardService()), model: CardModel(store: MockData.stores[0]))
