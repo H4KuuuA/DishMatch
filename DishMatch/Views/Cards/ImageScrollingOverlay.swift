@@ -12,7 +12,18 @@ struct ImageScrollingOverlay: View {
     let imagecount: Int
     
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        HStack {
+            Rectangle()
+                .onTapGesture {
+                    updateImageImage(increment: false)
+                }
+            
+            Rectangle()
+                .onTapGesture {
+                    updateImageImage(increment: true)
+                }
+        }
+        .foregroundStyle(.white .opacity(0.01))
     }
 }
 
