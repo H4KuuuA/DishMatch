@@ -11,6 +11,10 @@ import Foundation
 class CardsViewModel: ObservableObject {
     @Published var cardModels = [CardModel]()
     private let service: CardService
+    // 一時的に削除されたカードを保存する配列
+    private var removedCards: [CardModel] = []
+    // removedCardsに保存する最大数
+    private let maxRemovedCardsCount = 5
     
     init(service: CardService) {
         self.service = service
@@ -26,5 +30,17 @@ class CardsViewModel: ObservableObject {
         } catch {
             print("DEBUG: fetchCardModels error \(error)")
         }
+    }
+    /// 指定されたカードをcardModelsから削除し、removedCardsに保存する
+    func removeCard(_ card: CardModel) {
+        guard let index = cardModels.firstIndex(where: { $0.id == card.id }) else { return }
+        // カードを削除し、removedCardsに追加
+        let removedCard = cardModels.remove(at: index)
+        removedCards.append(removedCard)
+        // removedCardsがmaxRemovedCardsCountを超えた場合、最古のカードを削除
+        if removedCards.count > maxRemovedCardsCount {
+            removedCards.removeFirst()
+        }
+        print("DEBUG: Removed card with storeName: \(removedCard.store.storeName)")
     }
 }
