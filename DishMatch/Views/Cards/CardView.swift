@@ -95,6 +95,22 @@ private extension CardView {
         xOffset = value.translation.width
         degrees = Double(value.translation.width / 25)
     }
+    
+    /// ドラッグ終了時の処理
+    func onDragEnded (_ value: _ChangedGesture<DragGesture>.Value) {
+        let width = value.translation.width
+        
+        // 画面外にはみ出さないように戻す処理
+        if abs(width) <= abs(CGFloat(SizeConstants.screenCutoff)) {
+            returnToCenter()
+            return
+        }
+        if Float(width) >= SizeConstants.screenCutoff {
+            swipeRight()
+        }else {
+            swipeLeft()
+        }
+    }
 }
 
 #Preview {
