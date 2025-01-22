@@ -60,7 +60,7 @@ private extension CardView {
             xOffset = 500
             degrees = 12
         } completion: {
-           
+            viewModel.removeCard(model)
         }
     }
     func swipeLeft() {
@@ -68,10 +68,11 @@ private extension CardView {
             xOffset = -500
             degrees = -12
         } completion: {
-           
+            viewModel.removeCard(model)
         }
     }
 }
+
 #Preview {
     CardView(viewModel: CardsViewModel(service: CardService()), model: CardModel(store: MockData.stores[0]))
 }
