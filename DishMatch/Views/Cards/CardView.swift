@@ -8,8 +8,11 @@
 import SwiftUI
 
 struct CardView: View {
+    @ObservedObject var viewModel: CardsViewModel
     
     @State private var currentImageIndex: Int = 0
+    @State private var xOffset: CGFloat = 0
+    @State private var degrees: Double = 0
     
     let model: CardModel
     
@@ -46,6 +49,29 @@ private extension CardView {
         return store.profileImageURLs.count
     }
 }
+
+private extension CardView {
+    func returnToCenter() {
+        xOffset = 0
+        degrees = 0
+    }
+    func swipeRight() {
+        withAnimation {
+            xOffset = 500
+            degrees = 12
+        } completion: {
+           
+        }
+    }
+    func swipeLeft() {
+        withAnimation {
+            xOffset = -500
+            degrees = -12
+        } completion: {
+           
+        }
+    }
+}
 #Preview {
-    CardView(model: CardModel(store: MockData.stores[0]))
+    CardView(viewModel: CardsViewModel(service: CardService()), model: CardModel(store: MockData.stores[0]))
 }
