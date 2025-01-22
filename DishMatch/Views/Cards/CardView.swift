@@ -16,6 +16,10 @@ struct CardView: View {
     var body: some View {
         ZStack (alignment: .bottom){
             Image(model.store.profileImageURLs[currentImageIndex])
+                .resizable()
+                .scaledToFill()
+                .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
+                .clipped()
         }
     }
 }
