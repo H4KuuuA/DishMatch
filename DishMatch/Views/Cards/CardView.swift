@@ -26,6 +26,8 @@ struct CardView: View {
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
                 .padding(.horizontal)
         }
+        .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
