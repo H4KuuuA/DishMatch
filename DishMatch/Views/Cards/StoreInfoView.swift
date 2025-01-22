@@ -35,11 +35,13 @@ struct StoreInfoView: View {
                 Text("|")
                 Image(systemName: "mappin.and.ellipse")
                 Text("\(store.station_name)")
-                
-                
             }
-            
         }
+        .padding()
+        .background(
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+        )
+        .foregroundStyle(.white)
     }
 }
 
