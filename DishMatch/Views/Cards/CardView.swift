@@ -24,6 +24,17 @@ struct CardView: View {
     }
 }
 
+//
+private extension CardView {
+    // CardModelからstoreプロパティを取り出す計算プロパティ
+    var store: Store {
+        return model.store
+    }
+    // store.profileImageURLs配列の要素数を返す計算プロパティ
+    var imageCount: Int {
+        return store.profileImageURLs.count
+    }
+}
 #Preview {
     CardView(model: CardModel(store: MockData.stores[0]))
 }
