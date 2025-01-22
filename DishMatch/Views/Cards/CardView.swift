@@ -71,6 +71,22 @@ private extension CardView {
             viewModel.removeCard(model)
         }
     }
+    /// likeかrejectを受け取って、最上部のカードを適切にスワイプさせる関数
+    func onReceiveSwipeAction(_ action: SwipeAction?) {
+        // アクションがnilの場合、早期リターン
+        guard let action else { return }
+        
+        let topCard = viewModel.cardModels.last
+        
+        if  topCard == model {
+            switch action {
+            case .rejetct:
+                swipeLeft()
+            case .like:
+                swipeRight()
+            }
+        }
+    }
 }
 
 #Preview {
