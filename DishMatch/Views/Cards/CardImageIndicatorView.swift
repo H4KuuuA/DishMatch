@@ -12,9 +12,17 @@ struct CardImageIndicatorView: View {
     let imageCount: Int
     
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        HStack {
+            ForEach(0..<imageCount, id:\.self) { index in
+                Capsule()
+                    .foregroundStyle(currentImageIndex == index ? .white : .gray)
+                    .frame(width: 100,height: 4)
+                    .padding(.top, 8)
+            }
+        }
     }
 }
+
 /// 画像の数に基づいてインジケーターの幅を調整
 private extension CardImageIndicatorView {
     var imageIndicatorWidth: CGFloat {
