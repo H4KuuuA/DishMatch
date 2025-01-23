@@ -30,6 +30,10 @@ struct ReserveButtonView: View {
                         .cornerRadius(24)
                 }
         }
+        .padding(24)
+        .padding(.bottom, 8)
+        .background(Color("SubColor"))
+        .frame(maxHeight: .infinity, alignment: .bottom)
     }
 }
 
