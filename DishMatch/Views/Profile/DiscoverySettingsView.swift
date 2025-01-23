@@ -11,7 +11,11 @@ struct DiscoverySettingsView: View {
     @Environment(\.dismiss) var dismiss
     @State private var distance: Double = 5
     @State private var budget: Double = 2000
-    let numbers = Array(1...100) // 1から100の数字
+    @State private var isAllYouCanDrink: Bool = false
+    @State private var isAllYouCanEat: Bool = false
+    @State private var isPrivateRoomAvailable: Bool = false
+    @State private var isTatamiRoomAvailable: Bool = false
+    @State private var isParkingAvailable: Bool = false
 
     var body: some View {
         NavigationView {
@@ -37,6 +41,24 @@ struct DiscoverySettingsView: View {
                     }
                     Slider(value: $budget, in: 500...50000, step: 100)
                         .tint(.orange)
+                }
+
+                // その他の設定
+                Section {
+                    Toggle("飲み放題", isOn: $isAllYouCanDrink)
+                        .tint(.orange)
+                    Toggle("食べ放題", isOn: $isAllYouCanEat)
+                        .tint(.orange)
+                    Toggle("個室あり", isOn: $isPrivateRoomAvailable)
+                        .tint(.orange)
+                    Toggle("座敷", isOn: $isTatamiRoomAvailable)
+                        .tint(.orange)
+                    Toggle("駐車場", isOn: $isParkingAvailable)
+                        .tint(.orange)
+                } header: {
+                    Text("こだわり")
+                        .font(.headline)
+                        .foregroundColor(.black.opacity(0.8))
                 }
             }
             .navigationTitle("ディスカバリー設定")
