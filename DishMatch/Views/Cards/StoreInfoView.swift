@@ -34,12 +34,13 @@ struct StoreInfoView: View {
             HStack {
                 Image(systemName: "fork.knife")
                 Text("\(store.genre)")
-                    .font(.subheadline)
-                    .lineLimit(2)
+                    
                 Text("|")
                 Image(systemName: "mappin.and.ellipse")
                 Text("\(store.station_name)")
             }
+            .font(.subheadline)
+            .lineLimit(2)
         }
         .padding()
         .background(
