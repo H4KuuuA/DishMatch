@@ -8,8 +8,10 @@
 import SwiftUI
 
 struct DiscoverSettingsButtonView: View {
+    @Binding var isShowDiscoverSettings: Bool
     var body: some View {
         Button {
+            isShowDiscoverSettings.toggle()
         } label: {
             Image(systemName: "slider.horizontal.3")
                 .fontWeight(.heavy)
@@ -27,5 +29,5 @@ struct DiscoverSettingsButtonView: View {
 }
 
 #Preview {
-    DiscoverSettingsButtonView()
+    DiscoverSettingsButtonView(isShowDiscoverSettings: .constant(false))
 }

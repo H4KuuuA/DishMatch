@@ -10,6 +10,8 @@ import SwiftUI
 struct CardStackView: View {
     @StateObject var viewModel = CardsViewModel(service: CardService())
     
+    @State private var isShowDiscoverSettings = false
+    
     var body: some View {
         NavigationStack {
             VStack (spacing: 16){
@@ -24,7 +26,7 @@ struct CardStackView: View {
                     HStack (spacing: 32){
                         BackCardButtonView(viewModel: viewModel)
                         SwipeActionButtonView(viewModel: viewModel)
-                        DiscoverSettingsButtonView()
+                        DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
                     }
                 }
             }
@@ -39,6 +41,9 @@ struct CardStackView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(.primary)
                 }
+            }
+            .fullScreenCover(isPresented: $isShowDiscoverSettings) {
+                DiscoverySettingsView()
             }
         }
     }
