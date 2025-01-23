@@ -8,9 +8,12 @@
 import SwiftUI
 
 struct BackCardButtonView: View {
+    
+    @ObservedObject var viewModel: CardsViewModel
+    
     var body: some View {
         Button {
-            
+            viewModel.restoreLastRemovedCard()
         } label: {
             Image(systemName: "arrow.counterclockwise")
                 .fontWeight(.heavy)
@@ -28,5 +31,5 @@ struct BackCardButtonView: View {
 }
 
 #Preview {
-    BackCardButtonView()
+    BackCardButtonView(viewModel: CardsViewModel(service: CardService()))
 }
