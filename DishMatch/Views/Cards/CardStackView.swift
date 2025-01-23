@@ -19,6 +19,18 @@ struct CardStackView: View {
                     }
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("Dish")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.orange)
+                    + Text("Match")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.primary)
+                }
+            }
         }
     }
 }
