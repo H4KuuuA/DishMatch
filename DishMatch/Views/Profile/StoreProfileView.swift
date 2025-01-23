@@ -30,7 +30,21 @@ struct StoreProfileView: View {
                                 .font(.title)
                                 .fontWeight(.semibold)
                                 .padding(.top, 15)
+                            Spacer()
                         }
+                        
+                        Text(store.genre)
+                            .font(.caption)
+                        + Text(" / ")
+                            .font(.caption)
+                        + Text("\(store.station_name)駅")
+                            .font(.caption)
+                        
+                        Text("店舗情報  (詳細)")
+                            .fontWeight(.semibold)
+                            .padding(.top, 20)
+                        
+                        Spacer()
                     }
                 }
             }
