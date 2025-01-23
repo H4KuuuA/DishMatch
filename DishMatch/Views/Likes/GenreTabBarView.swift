@@ -25,6 +25,12 @@ struct GenreTabBarView: View {
                                 .font(.system(size: 18))
                                 .fontWeight(.semibold)
                                 .foregroundColor(index == selectedIndex && isGenreActive ? Color(.orange) : Color.black.opacity(0.5))
+                            
+                            if index == selectedIndex && isGenreActive {
+                                Color(.orange)
+                                    .frame(width: 15, height: 2)
+                                    .clipShape(Capsule())
+                            }
                         }
                         .padding(.trailing)
                         .onTapGesture {
