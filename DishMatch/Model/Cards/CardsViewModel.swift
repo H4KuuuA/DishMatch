@@ -46,4 +46,10 @@ class CardsViewModel: ObservableObject {
         }
         print("DEBUG: Removed card with storeName: \(removedCard.store.storeName)")
     }
+    /// BackCardボタンが押された時に、removedCardsの最後のカードを元のcardModelsに戻す
+    func restoreLastRemovedCard() {
+        guard let lastRemovedCard = removedCards.last else { return }
+        removedCards.removeLast()
+        cardModels.insert(lastRemovedCard, at: 0)
+    }
 }
