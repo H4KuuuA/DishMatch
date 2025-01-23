@@ -412,6 +412,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DishMatch/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "バックグラウンドでも位置情報を使用します。";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "アプリの使用中に位置情報を使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -441,6 +443,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DishMatch/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "バックグラウンドでも位置情報を使用します。";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "アプリの使用中に位置情報を使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
