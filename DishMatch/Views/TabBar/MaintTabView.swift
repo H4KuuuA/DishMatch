@@ -18,7 +18,7 @@ struct MainTabView: View {
                 .tabItem { Image (systemName: "heart.fill")}
                 .tag(1)
             
-            Text("UserProfileView()")
+            UserProfileView()
                 .tabItem{ Image (systemName: "person")}
                 .tag(2)
         }
