@@ -42,7 +42,7 @@ struct DiscoverySettingsView: View {
                         Text("\(Int(budget)) 円")
                             .foregroundColor(.gray)
                     }
-                    Slider(value: $budget, in: 500...50000, step: 100)
+                    Slider(value: $budget, in: 500...20000, step: 100)
                         .tint(.orange)
                 }
 
@@ -70,7 +70,7 @@ struct DiscoverySettingsView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         // 完了処理：設定内容をコンソールで表示（実際は保存処理など）
-                        print("距離設定: \(Int(distance)) km")
+                        print("距離設定: \(Int(distance)) m")
                         print("予算設定: \(Int(budget)) 円")
                         print("飲み放題: \(isAllYouCanDrink ? "有効" : "無効")")
                         print("食べ放題: \(isAllYouCanEat ? "有効" : "無効")")
