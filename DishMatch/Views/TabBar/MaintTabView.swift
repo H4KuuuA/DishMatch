@@ -10,7 +10,7 @@ import SwiftUI
 struct MainTabView: View {
     var body: some View {
         TabView{
-            Text("CardStackView()")
+            CardStackView()
                 .tabItem { Image (systemName: "fork.knife")}
                 .tag(0)
             
