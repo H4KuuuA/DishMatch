@@ -28,6 +28,8 @@ struct CardView: View {
                         ImageScrollingOverlay(currentImageIndex: $currentImageIndex, imagecount: imageCount)
                     }
                 CardImageIndicatorView(currentImageIndex: currentImageIndex, imageCount: imageCount)
+                SwipeActionIndicatorView(xOffset: $xOffset
+                                         , screenCutOff: CGFloat(SizeConstants.screenCutoff))
             }
             StoreInfoView(store: store)
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
