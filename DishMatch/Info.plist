@@ -4,7 +4,7 @@
 <dict>
 	<key>NSLocationUsageDescription</key>
 	<string>アプリの使用中に位置情報を使用します。</string>
-	<key>NSLocalNetworkUsageDescription</key>
+	<key>NSLocationAlwaysUsageDescription</key>
 	<string>バックグラウンドでも位置情報を使用します。</string>
 </dict>
 </plist>
