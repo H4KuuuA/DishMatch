@@ -46,6 +46,10 @@ struct StoreProfileView: View {
                         
                         Spacer()
                     }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(40)
+                    .offset(y: -30)
                 }
             }
         }
