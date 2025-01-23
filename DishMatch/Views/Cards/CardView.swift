@@ -29,7 +29,7 @@ struct CardView: View {
                     }
                 CardImageIndicatorView(currentImageIndex: currentImageIndex, imageCount: imageCount)
                 SwipeActionIndicatorView(xOffset: $xOffset
-                                         , screenCutOff: CGFloat(SizeConstants.screenCutoff))
+                                         , screenCutOff: CGFloat(SizeConstants.screenCutOff))
             }
             StoreInfoView(store: store)
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
@@ -114,11 +114,11 @@ private extension CardView {
         let width = value.translation.width
         
         // 画面外にはみ出さないように戻す処理
-        if abs(width) <= abs(CGFloat(SizeConstants.screenCutoff)) {
+        if abs(width) <= abs(CGFloat(SizeConstants.screenCutOff)) {
             returnToCenter()
             return
         }
-        if Float(width) >= SizeConstants.screenCutoff {
+        if Float(width) >= SizeConstants.screenCutOff {
             swipeRight()
         }else {
             swipeLeft()

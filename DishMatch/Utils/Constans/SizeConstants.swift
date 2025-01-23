@@ -10,7 +10,7 @@ import SwiftUI
 // 画面サイズに基づく定数を保持する構造体
 struct SizeConstants {
         /// 画面幅の半分の80%を "screenCutoff" として定義
-        static var screenCutoff: CFloat {
+        static var screenCutOff: CFloat {
             CFloat((UIScreen.main.bounds.width / 2) * 0.8)
         }
         /// カードの幅を画面の幅から 20 ポイントを引いた値に設定
