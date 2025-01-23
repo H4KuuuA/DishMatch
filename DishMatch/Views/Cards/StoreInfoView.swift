@@ -8,7 +8,11 @@
 import SwiftUI
 
 struct StoreInfoView: View {
+    
+    @Binding var isShowProfileModal: Bool
+    
     let store: Store
+    
     var body: some View {
         VStack (alignment: .leading){
             HStack {
@@ -20,7 +24,7 @@ struct StoreInfoView: View {
                 
                 // プロフィール表示ボタン
                 Button {
-                    
+                    isShowProfileModal.toggle()
                 } label: {
                     Image(systemName: "arrow.up.circle")
                         .fontWeight(.bold)
@@ -46,5 +50,6 @@ struct StoreInfoView: View {
 }
 
 #Preview {
-    StoreInfoView(store: MockData.stores[1])
+    StoreInfoView(isShowProfileModal: .constant(false)
+                  , store: MockData.stores[1])
 }

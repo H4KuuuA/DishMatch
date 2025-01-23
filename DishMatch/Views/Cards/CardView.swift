@@ -13,6 +13,7 @@ struct CardView: View {
     @State private var currentImageIndex: Int = 0
     @State private var xOffset: CGFloat = 0
     @State private var degrees: Double = 0
+    @State private var isShowProfileModal = false
     
     let model: CardModel
     
@@ -31,7 +32,7 @@ struct CardView: View {
                 SwipeActionIndicatorView(xOffset: $xOffset
                                          , screenCutOff: CGFloat(SizeConstants.screenCutOff))
             }
-            StoreInfoView(store: store)
+            StoreInfoView(isShowProfileModal: $isShowProfileModal, store: store)
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
                 .padding(.horizontal)
         }
