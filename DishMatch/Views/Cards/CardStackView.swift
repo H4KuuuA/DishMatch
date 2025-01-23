@@ -18,10 +18,14 @@ struct CardStackView: View {
                         CardView(viewModel: viewModel, model: card)
                     }
                 }
-                HStack (spacing: 32){
-                    BackCardButtonView(viewModel: viewModel)
-                    SwipeActionButtonView(viewModel: viewModel)
-                    DiscoverSettingsButtonView()
+                
+                // カードがなくなった時にボタンの位置が変わるのを防ぐ
+                if !viewModel.cardModels.isEmpty {
+                    HStack (spacing: 32){
+                        BackCardButtonView(viewModel: viewModel)
+                        SwipeActionButtonView(viewModel: viewModel)
+                        DiscoverSettingsButtonView()
+                    }
                 }
             }
             .toolbar {
