@@ -20,16 +20,19 @@ struct DiscoverySettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                // 距離設定
                 Section {
                     HStack {
                         Text("距離")
                         Spacer()
-                        Text("\(Int(distance)) km")
+                        Text("\(Int(distance)) m")
                             .foregroundColor(.gray)
                     }
-                    Slider(value: $distance, in: 1...50, step: 1)
-                        .tint(.orange)
+                    Picker("距離", selection: $distance) {
+                        ForEach([300, 500, 1000, 2000, 3000], id: \.self) { distanceOption in
+                            Text("\(distanceOption) m").tag(Double(distanceOption))
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle()) // もしくは他のスタイルを使う
                 }
                 // 予算
                 Section {
