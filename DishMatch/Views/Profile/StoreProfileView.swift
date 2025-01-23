@@ -15,49 +15,54 @@ struct StoreProfileView: View {
     let store: Store
     
     var body: some View {
-        VStack {
-            ScrollView {
-                VStack {
-                    Image(store.profileImageURLs[currentImageIndex])
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(maxWidth: .infinity, maxHeight: 300) // 画像のサイズ設定
-                    
-                    // 店舗情報
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(store.storeName)
-                                .font(.title)
+        ZStack {
+            VStack {
+                ScrollView {
+                    VStack {
+                        Image(store.profileImageURLs[currentImageIndex])
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxWidth: .infinity, maxHeight: 300) // 画像のサイズ設定
+                        
+                        // 店舗情報
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(store.storeName)
+                                    .font(.title)
+                                    .fontWeight(.semibold)
+                                    .padding(.top, 15)
+                                Spacer()
+                            }
+                            
+                            Text(store.genre)
+                                .font(.caption)
+                            + Text(" / ")
+                                .font(.caption)
+                            + Text("\(store.station_name)駅")
+                                .font(.caption)
+                            
+                            Text("店舗情報  (詳細)")
                                 .fontWeight(.semibold)
-                                .padding(.top, 15)
+                                .padding(.top, 20)
+                            
                             Spacer()
                         }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(40)
+                        .offset(y: -30)
                         
-                        Text(store.genre)
-                            .font(.caption)
-                        + Text(" / ")
-                            .font(.caption)
-                        + Text("\(store.station_name)駅")
-                            .font(.caption)
-                        
-                        Text("店舗情報  (詳細)")
-                            .fontWeight(.semibold)
-                            .padding(.top, 20)
-                        
-                        Spacer()
+                        ProfileDismissButtonView()
+                            .offset(x: 145, y: -210)
                     }
-                    .padding()
-                    .background(Color.white)
-                    .cornerRadius(40)
-                    .offset(y: -30)
                 }
             }
-        }
-        // ReserveButtonViewは常に画面下部に固定
-        VStack {
-            Spacer()
-            ReserveButtonView()
-                .edgesIgnoringSafeArea(.bottom)
+            // ReserveButtonViewは常に画面下部に固定
+            VStack {
+                Spacer()
+                ReserveButtonView()
+                    .edgesIgnoringSafeArea(.bottom)
+            }
         }
     }
 }
