@@ -16,12 +16,29 @@ struct GenreTabBarView: View {
         VStack {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
-                    // ここではまだ、LikesViewModelを使用しない
-                    Text("Initial Tab View")
-                        .font(.system(size: 18))
+                    // LikesViewModelに基づいてuniqueStoresを表示
+                    ForEach(LikesViewModel.uniqueStores.indices, id: \.self) { index in
+                        let store = LikesViewModel.uniqueStores[index]
+                        
+                        VStack(alignment: .leading) {
+                            Text(store.genre)
+                                .font(.system(size: 18))
+                                .fontWeight(.semibold)
+                                .foregroundColor(index == selectedIndex && isGenreActive ? Color(.orange) : Color.black.opacity(0.5))
+                        }
+                        .padding(.trailing)
+                        .onTapGesture {
+                            // タップされたインデックスを選択
+                            selectedIndex = index
+                        }
+                    }
                 }
             }
             .padding(.horizontal)
+        }
+        .onAppear {
+            // 初回表示時にuniqueStoresを設定
+            LikesViewModel.updateStores(LikesViewModel.uniqueStores)
         }
     }
 }
