@@ -18,6 +18,11 @@ struct CardStackView: View {
                         CardView(viewModel: viewModel, model: card)
                     }
                 }
+                HStack (spacing: 32){
+                    BackCardButtonView(viewModel: viewModel)
+                    SwipeActionButtonView(viewModel: viewModel)
+                    DiscoverSettingsButtonView()
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
