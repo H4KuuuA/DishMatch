@@ -53,6 +53,12 @@ struct StoreProfileView: View {
                 }
             }
         }
+        // ReserveButtonViewは常に画面下部に固定
+        VStack {
+            Spacer()
+            ReserveButtonView()
+                .edgesIgnoringSafeArea(.bottom)
+        }
     }
 }
 
