@@ -63,6 +63,23 @@ struct DiscoverySettingsView: View {
             }
             .navigationTitle("ディスカバリー設定")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        // 完了処理：設定内容をコンソールで表示（実際は保存処理など）
+                        print("距離設定: \(Int(distance)) km")
+                        print("予算設定: \(Int(budget)) 円")
+                        print("飲み放題: \(isAllYouCanDrink ? "有効" : "無効")")
+                        print("食べ放題: \(isAllYouCanEat ? "有効" : "無効")")
+                        print("個室あり: \(isPrivateRoomAvailable ? "有効" : "無効")")
+                        print("座敷: \(isTatamiRoomAvailable ? "有効" : "無効")")
+                        dismiss()
+                    } label: {
+                        Text ("完了")
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
         }
     }
 }
