@@ -36,6 +36,10 @@ struct CardView: View {
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
                 .padding(.horizontal)
         }
+        .fullScreenCover(isPresented: $isShowProfileModal) {
+            // ここで model.store を渡す
+            StoreProfileView(model: model, store: model.store)
+        }
         .onReceive(viewModel.$buttonSwipeAction, perform: { action in
             onReceiveSwipeAction(action)
         })
