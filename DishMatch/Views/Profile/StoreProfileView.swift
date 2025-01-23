@@ -8,11 +8,36 @@
 import SwiftUI
 
 struct StoreProfileView: View {
+    
+    @State private var currentImageIndex: Int = 0
+    
+    let model: CardModel
+    let store: Store
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            ScrollView {
+                VStack {
+                    Image(store.profileImageURLs[currentImageIndex])
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity, maxHeight: 300) // 画像のサイズ設定
+                    
+                    // 店舗情報
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(store.storeName)
+                                .font(.title)
+                                .fontWeight(.semibold)
+                                .padding(.top, 15)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 #Preview {
-    StoreProfileView()
+    StoreProfileView(model: CardModel(store: MockData.stores[1]), store: MockData.stores[1])
 }
