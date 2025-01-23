@@ -93,6 +93,41 @@ struct UserProfileView: View {
                         }
                     }
                 }
+                
+                Section("サポート") {
+                    Button {
+                        
+                    } label: {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.orange)
+                                .padding(.trailing)
+                            Text("ヘルプ・よくある質問")
+                                .foregroundStyle(.black)
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    Button {
+                        
+                    } label: {
+                        HStack {
+                            Image(systemName: "text.page")
+                                .foregroundStyle(.orange)
+                                .padding(.trailing)
+                            Text("サービス利用規約")
+                                .foregroundStyle(.black)
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
             }
         }
     }
