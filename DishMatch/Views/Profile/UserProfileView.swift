@@ -128,6 +128,16 @@ struct UserProfileView: View {
                         }
                     }
                 }
+                
+                Section(""){
+                    HStack {
+                        Text("ログアウト")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.red.opacity(0.8))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                }
             }
         }
     }
