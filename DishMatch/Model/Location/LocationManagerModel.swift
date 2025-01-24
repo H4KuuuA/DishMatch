@@ -22,7 +22,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestAlwaysAuthorization()
     }
     
-    // 権限変更時に呼ばれるデリゲートメソッド
+    /// 権限変更時に呼ばれるデリゲートメソッド
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         // 権限が許可されている場合にのみ位置情報の更新を開始
         if status == .authorizedAlways || status == .authorizedWhenInUse {
@@ -36,7 +36,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    // 位置情報が更新されたときに呼ばれるデリゲートメソッド
+    /// 位置情報が更新されたときに呼ばれるデリゲートメソッド
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
         DispatchQueue.main.async {
