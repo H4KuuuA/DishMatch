@@ -22,7 +22,7 @@ struct UserProfileView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.trailing)
                             Text("登録情報")
-                                .foregroundStyle(.black)
+                                .foregroundStyle(Color("FC"))
                             Spacer()
                             
                             Image(systemName: "chevron.right")
@@ -37,7 +37,7 @@ struct UserProfileView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.trailing)
                             Text("予約履歴")
-                                .foregroundStyle(.black)
+                                .foregroundStyle(Color("FC"))
                             Spacer()
                             
                             Image(systemName: "chevron.right")
@@ -52,7 +52,7 @@ struct UserProfileView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.trailing)
                             Text("行ったお店")
-                                .foregroundStyle(.black)
+                                .foregroundStyle(Color("FC"))
                             
                             Spacer()
                             
@@ -68,7 +68,7 @@ struct UserProfileView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.trailing)
                             Text("クーポン")
-                                .foregroundStyle(.black)
+                                .foregroundStyle(Color("FC"))
                             
                             Spacer()
                             
@@ -84,7 +84,7 @@ struct UserProfileView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.trailing)
                             Text("アプリ設定")
-                                .foregroundStyle(.black)
+                                .foregroundStyle(Color("FC"))
                             
                             Spacer()
                             
@@ -103,7 +103,7 @@ struct UserProfileView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.trailing)
                             Text("ヘルプ・よくある質問")
-                                .foregroundStyle(.black)
+                                .foregroundStyle(Color("FC"))
                             
                             Spacer()
                             
@@ -119,7 +119,7 @@ struct UserProfileView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.trailing)
                             Text("サービス利用規約")
-                                .foregroundStyle(.black)
+                                .foregroundStyle(Color("FC"))
                             
                             Spacer()
                             
