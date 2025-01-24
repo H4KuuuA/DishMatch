@@ -29,7 +29,7 @@ struct UserProfileHeaderView: View {
                         .foregroundStyle(.gray)
                         .background {
                             Circle()
-                                .fill(.white)
+                                .fill(Color("BG"))
                                 .frame(width: 32, height: 32)
                         }
                     
@@ -39,6 +39,7 @@ struct UserProfileHeaderView: View {
             }
             .padding()
             Text("ご飯探検隊")
+                .foregroundStyle(Color("FC"))
                 .font(.title2)
                 .fontWeight(.bold)
         }
