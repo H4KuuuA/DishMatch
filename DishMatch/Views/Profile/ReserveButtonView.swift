@@ -24,7 +24,7 @@ struct ReserveButtonView: View {
                         .padding()
                         .padding(.horizontal)
                         .font(.headline)
-                        .foregroundColor(Color("FC"))
+                        .foregroundColor(.white)
                         .frame(width: 240, height: 48)
                         .background(Color.orange)
                         .cornerRadius(24)
