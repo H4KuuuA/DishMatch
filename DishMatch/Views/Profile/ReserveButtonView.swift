@@ -14,7 +14,7 @@ struct ReserveButtonView: View {
                 Image(systemName: "phone.fill")
                     .foregroundColor(.gray .opacity(0.8))
                     .frame(width: 60, height: 48)
-                    .background(Color.white)
+                    .background(Color("BG"))
                     .cornerRadius(24)
             }
             Spacer()
@@ -24,7 +24,7 @@ struct ReserveButtonView: View {
                         .padding()
                         .padding(.horizontal)
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color("FC"))
                         .frame(width: 240, height: 48)
                         .background(Color.orange)
                         .cornerRadius(24)
