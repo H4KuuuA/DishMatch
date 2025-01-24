@@ -8,9 +8,13 @@
 import Foundation
 
 enum APIError: Error {
+    /// URLが正しく生成できなかった場合に発生するエラー/
     case failCreateURL
+    /// セッション中にエラーが発生した場合（ネットワーク接続の問題など）
     case sessionError
+    /// APIリクエスト自体でエラーが発生した場合（サーバーエラーやタイムアウトなど）/
     case requestError(Error)
+    /// APIレスポンスのデコードに失敗した場合（JSONの形式が不正など）/
     case decodeError(Error)
 
     var errorTitle: String {
