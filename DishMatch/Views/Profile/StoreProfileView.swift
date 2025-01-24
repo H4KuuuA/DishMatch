@@ -54,7 +54,7 @@ struct StoreProfileView: View {
                             Spacer()
                         }
                         .padding()
-                        .background(Color("BG"))
+                        .background(Color("WB"))
                         .cornerRadius(40)
                         .offset(y: -30)
                         
@@ -70,7 +70,7 @@ struct StoreProfileView: View {
                     .edgesIgnoringSafeArea(.bottom)
             }
         }
-        .background(Color("BG"))
+        .background(Color("WB"))
     }
 }
 
