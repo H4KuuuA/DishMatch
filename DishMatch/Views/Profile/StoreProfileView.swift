@@ -34,12 +34,16 @@ struct StoreProfileView: View {
                                 Spacer()
                             }
                             
-                            Text(store.genre)
-                                .font(.caption)
-                            + Text(" / ")
-                                .font(.caption)
-                            + Text("\(store.station_name)駅")
-                                .font(.caption)
+                            HStack {
+                                Image(systemName: "fork.knife")
+                                Text("\(store.genre)")
+                                    
+                                Text("|")
+                                Image(systemName: "mappin.and.ellipse")
+                                Text("\(store.station_name)")
+                            }
+                            .font(.caption)
+                            .lineLimit(2)
                             
                             Text("店舗情報  (詳細)")
                                 .fontWeight(.semibold)
