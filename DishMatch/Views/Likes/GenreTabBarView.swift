@@ -24,7 +24,7 @@ struct GenreTabBarView: View {
                             Text(store.genre)
                                 .font(.system(size: 18))
                                 .fontWeight(.semibold)
-                                .foregroundColor(index == selectedIndex && isGenreActive ? Color(.orange) : Color.black.opacity(0.5))
+                                .foregroundColor(index == selectedIndex && isGenreActive ? Color(.orange) : Color("FC").opacity(0.6))
                             
                             if index == selectedIndex && isGenreActive {
                                 Color(.orange)
