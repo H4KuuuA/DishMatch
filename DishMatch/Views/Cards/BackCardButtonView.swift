@@ -20,7 +20,7 @@ struct BackCardButtonView: View {
                 .foregroundStyle(.yellow)
                 .background {
                     Circle()
-                        .fill(.white)
+                        .fill(Color("BG"))
                         .frame(width: 48, height: 48)
                         .shadow(radius: 6)
                 }

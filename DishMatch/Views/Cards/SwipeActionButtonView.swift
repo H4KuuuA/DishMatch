@@ -21,7 +21,7 @@ struct SwipeActionButtonView: View {
                     .foregroundStyle(.gray)
                     .background {
                         Circle()
-                            .fill(.white)
+                            .fill(Color("BG"))
                             .frame(width: 48, height: 48)
                             .shadow(radius: 6)
                     }
@@ -36,7 +36,7 @@ struct SwipeActionButtonView: View {
                     .foregroundStyle(.orange)
                     .background {
                         Circle()
-                            .fill(.white)
+                            .fill(Color("BG"))
                             .frame(width: 48, height: 48)
                             .shadow(radius: 6)
                     }
