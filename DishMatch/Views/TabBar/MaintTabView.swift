@@ -23,6 +23,8 @@ struct MainTabView: View {
                 .tag(2)
         }
         .tint(.primary)
+        .background(Color("BG"))
+        .edgesIgnoringSafeArea(.all)
     }
 }
 
