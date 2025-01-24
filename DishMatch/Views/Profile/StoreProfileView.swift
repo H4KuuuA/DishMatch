@@ -42,17 +42,19 @@ struct StoreProfileView: View {
                                 Image(systemName: "mappin.and.ellipse")
                                 Text("\(store.station_name)")
                             }
+                            .foregroundStyle(Color("FC"))
                             .font(.caption)
                             .lineLimit(2)
                             
                             Text("店舗情報  (詳細)")
+                                .foregroundStyle(Color("FC"))
                                 .fontWeight(.semibold)
                                 .padding(.top, 20)
                             
                             Spacer()
                         }
                         .padding()
-                        .background(Color.white)
+                        .background(Color("BG"))
                         .cornerRadius(40)
                         .offset(y: -30)
                         
@@ -68,6 +70,7 @@ struct StoreProfileView: View {
                     .edgesIgnoringSafeArea(.bottom)
             }
         }
+        .background(Color("BG"))
     }
 }
 
