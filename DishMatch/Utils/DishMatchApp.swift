@@ -9,6 +9,10 @@ import SwiftUI
 
 @main
 struct DishMatchApp: App {
+    init() {
+            // アプリ起動時にLocationManagerを初期化
+            _ = LocationManager.shared
+        }
     var body: some Scene {
         WindowGroup {
             ContentView()
