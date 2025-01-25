@@ -8,15 +8,16 @@
 import SwiftUI
 
 struct RestaurantListView: View {
-    private var apiClient = APIClient() // APIクライアントを使用
-    @State private var restaurants: [Shop] = []     // 取得したレストランデータ
-    @State private var isLoading = false            // ローディング状態
+    @StateObject private var viewModel = RestaurantViewModel()
+    private var apiClient = APIClient()
+    @State private var restaurants: [Shop] = []
+    @State private var isLoading = false
     
     var body: some View {
         NavigationView {
             VStack {
                 if isLoading {
-                    ProgressView("データを取得中...") // ローディング表示
+                    ProgressView("データを取得中...") 
                         .padding()
                 } else {
                     List(restaurants) { restaurant in
@@ -28,23 +29,7 @@ struct RestaurantListView: View {
             }
             .navigationTitle("レストラン一覧")
             .onAppear {
-                fetchRestaurants() // データを取得
-            }
-        }
-    }
-    
-    private func fetchRestaurants() {
-        isLoading = true
-        Task {
-            do {
-                let result = try await apiClient.fetchRestaurantData(keyword: nil, range: "3", genre: nil) // キーワードやジャンルは任意
-                DispatchQueue.main.async {
-                    self.restaurants = result.results.shop
-                    self.isLoading = false
-                }
-            } catch {
-                print("エラー: \(error)")
-                isLoading = false
+                viewModel.fetchRestaurants() // データを取得
             }
         }
     }

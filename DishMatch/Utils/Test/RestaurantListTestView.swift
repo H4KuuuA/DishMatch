@@ -8,8 +8,11 @@
 import SwiftUI
 
 struct RestaurantListTestView: View {
-    @State private var restaurants: [Shop] = [] // APIから取得したデータを保持
-    @State private var isLoading = true         // ローディング状態を管理
+    @StateObject private var viewModel = RestaurantViewModel()
+    
+    @State private var restaurants: [Shop] = []
+    @State private var isLoading = true
+    
 
     var body: some View {
         NavigationView {
@@ -29,26 +32,7 @@ struct RestaurantListTestView: View {
             }
             .navigationTitle("レストラン一覧")
             .onAppear {
-                fetchRestaurants() // データを取得
-            }
-        }
-    }
-
-    // APIデータを取得する関数
-    private func fetchRestaurants() {
-        let apiClient = APIClient()
-        Task {
-            do {
-                let result = try await apiClient.fetchRestaurantData(keyword: nil, range: "5", genre: nil) // 検索範囲を広げる
-                DispatchQueue.main.async {
-                    self.restaurants = result.results.shop
-                    self.isLoading = false
-                }
-            } catch {
-                print("エラー: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
+                viewModel.fetchRestaurants() // データを取得
             }
         }
     }
