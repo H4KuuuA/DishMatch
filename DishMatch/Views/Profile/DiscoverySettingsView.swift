@@ -9,7 +9,7 @@ import SwiftUI
 
 struct DiscoverySettingsView: View {
     @Environment(\.dismiss) var dismiss
-    @State private var distance: Double = 5
+    @State private var selectedRange: MenuRangeType = .range5
     @State private var budget: Double = 2000
     @State private var isAllYouCanDrink: Bool = false
     @State private var isAllYouCanEat: Bool = false
@@ -20,21 +20,23 @@ struct DiscoverySettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                // 距離設定
                 Section {
                     HStack {
                         Text("距離")
                         Spacer()
-                        Text("\(Int(distance)) m")
+                        Text(selectedRange.range)
                             .foregroundColor(.gray)
                     }
-                    Picker("距離", selection: $distance) {
-                        ForEach([300, 500, 1000, 2000, 3000], id: \.self) { distanceOption in
-                            Text("\(distanceOption) m").tag(Double(distanceOption))
+                    Picker("距離", selection: $selectedRange) {
+                        ForEach(MenuRangeType.allCases, id: \.self) { rangeOption in
+                            Text(rangeOption.range).tag(rangeOption)
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle()) // もしくは他のスタイルを使う
                 }
-                // 予算
+                
+                // 予算設定
                 Section {
                     HStack {
                         Text("予算")
@@ -70,7 +72,7 @@ struct DiscoverySettingsView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         // 完了処理：設定内容をコンソールで表示（実際は保存処理など）
-                        print("距離設定: \(Int(distance)) m")
+                        print("距離設定: \(selectedRange.rangeValue)")
                         print("予算設定: \(Int(budget)) 円")
                         print("飲み放題: \(isAllYouCanDrink ? "有効" : "無効")")
                         print("食べ放題: \(isAllYouCanEat ? "有効" : "無効")")
