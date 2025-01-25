@@ -26,7 +26,6 @@ struct RestaurantListTestView: View {
                     }
                 }
             }
-            .navigationTitle("レストラン一覧")
             .onAppear {
                 viewModel.fetchRestaurants() // データを取得
             }
