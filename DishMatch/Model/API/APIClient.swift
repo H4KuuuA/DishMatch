@@ -19,8 +19,9 @@ final class APIClient {
     
     private func createAPIRequestURL(keyword: String?, range: String, genre: String?) -> URL? {
         let locationManager = LocationManager()
+        let keyManager = KeyManager()
         let baseURL: URL? = URL(string: "https://webservice.recruit.co.jp/hotpepper/gourmet/v1")
-        let apiKey = ProcessInfo.processInfo.environment["apiKey"]
+        let apiKey = keyManager.getValue(forKey: "apiKey")
         let format = "json"
         var urlComponents = URLComponents(url: baseURL!, resolvingAgainstBaseURL: true)
         
