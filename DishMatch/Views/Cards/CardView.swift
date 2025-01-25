@@ -9,18 +9,18 @@ import SwiftUI
 
 struct CardView: View {
     @ObservedObject var viewModel: CardsViewModel
-    
+
     @State private var currentImageIndex: Int = 0
     @State private var xOffset: CGFloat = 0
     @State private var degrees: Double = 0
     @State private var isShowProfileModal = false
-    
-    let model: CardModel
-    
+
+    let shop: Shop // `CardModel` の代わりに `Shop` を直接使用
+
     var body: some View {
-        ZStack (alignment: .bottom){
-            ZStack (alignment: .top) {
-                Image(model.store.profileImageURLs[currentImageIndex])
+        ZStack(alignment: .bottom) {
+            ZStack(alignment: .top) {
+                Image(shop.photo.mobile.l) // `Shop` の画像を利用
                     .resizable()
                     .scaledToFill()
                     .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
@@ -29,16 +29,14 @@ struct CardView: View {
                         ImageScrollingOverlay(currentImageIndex: $currentImageIndex, imagecount: imageCount)
                     }
                 CardImageIndicatorView(currentImageIndex: currentImageIndex, imageCount: imageCount)
-                SwipeActionIndicatorView(xOffset: $xOffset
-                                         , screenCutOff: CGFloat(SizeConstants.screenCutOff))
+                SwipeActionIndicatorView(xOffset: $xOffset, screenCutOff: CGFloat(SizeConstants.screenCutOff))
             }
-            StoreInfoView(isShowProfileModal: $isShowProfileModal, store: store)
+            StoreInfoView(isShowProfileModal: $isShowProfileModal, shop: shop)
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
                 .padding(.horizontal)
         }
         .fullScreenCover(isPresented: $isShowProfileModal) {
-            // ここで model.store を渡す
-            StoreProfileView(model: model, store: model.store)
+            StoreProfileView(shop: shop)
         }
         .onReceive(viewModel.$buttonSwipeAction, perform: { action in
             onReceiveSwipeAction(action)
@@ -58,13 +56,9 @@ struct CardView: View {
 
 //
 private extension CardView {
-    // CardModelからstoreプロパティを取り出す計算プロパティ
-    var store: Store {
-        return model.store
-    }
     // store.profileImageURLs配列の要素数を返す計算プロパティ
     var imageCount: Int {
-        return store.profileImageURLs.count
+        return 1 // `Shop` 構造体では1枚の画像しか持たないため固定
     }
 }
 
@@ -78,7 +72,7 @@ private extension CardView {
             xOffset = 500
             degrees = 12
         } completion: {
-            viewModel.removeCard(model)
+            viewModel.removeShop(shop) // `removeCard` を `removeShop` に変更
         }
     }
     func swipeLeft() {
@@ -86,17 +80,17 @@ private extension CardView {
             xOffset = -500
             degrees = -12
         } completion: {
-            viewModel.removeCard(model)
+            viewModel.removeShop(shop) // `removeCard` を `removeShop` に変更
         }
     }
     /// likeかrejectを受け取って、最上部のカードを適切にスワイプさせる関数
     func onReceiveSwipeAction(_ action: SwipeAction?) {
         // アクションがnilの場合、早期リターン
         guard let action else { return }
-        
-        let topCard = viewModel.cardModels.last
-        
-        if  topCard == model {
+
+        let topShop = viewModel.shops.last
+
+        if topShop == shop {
             switch action {
             case .rejetct:
                 swipeLeft()
@@ -106,6 +100,7 @@ private extension CardView {
         }
     }
 }
+
 private extension CardView {
     /// ドラッグ中の変化を処理
     func onDragChanged(_ value: _ChangedGesture<DragGesture>.Value) {
@@ -113,11 +108,11 @@ private extension CardView {
         xOffset = value.translation.width
         degrees = Double(value.translation.width / 25)
     }
-    
+
     /// ドラッグ終了時の処理
-    func onDragEnded (_ value: _ChangedGesture<DragGesture>.Value) {
+    func onDragEnded(_ value: _ChangedGesture<DragGesture>.Value) {
         let width = value.translation.width
-        
+
         // 画面外にはみ出さないように戻す処理
         if abs(width) <= abs(CGFloat(SizeConstants.screenCutOff)) {
             returnToCenter()
@@ -125,12 +120,12 @@ private extension CardView {
         }
         if Float(width) >= SizeConstants.screenCutOff {
             swipeRight()
-        }else {
+        } else {
             swipeLeft()
         }
     }
 }
 
 #Preview {
-    CardView(viewModel: CardsViewModel(service: CardService()), model: CardModel(store: MockData.stores[0]))
+    CardView(viewModel: CardsViewModel(), shop: MockShop.mockShop) 
 }

@@ -8,20 +8,19 @@
 import SwiftUI
 
 struct StoreInfoView: View {
-    
     @Binding var isShowProfileModal: Bool
-    
-    let store: Store
-    
+
+    let shop: Shop // `Store` を `Shop` に置き換え
+
     var body: some View {
-        VStack (alignment: .leading){
+        VStack(alignment: .leading) {
             HStack {
-                Text(store.storeName)
+                Text(shop.name) // 店舗名
                     .font(.title)
                     .fontWeight(.heavy)
-                
+
                 Spacer()
-                
+
                 // プロフィール表示ボタン
                 Button {
                     isShowProfileModal.toggle()
@@ -33,11 +32,11 @@ struct StoreInfoView: View {
             }
             HStack {
                 Image(systemName: "fork.knife")
-                Text("\(store.genre)")
-                    
+                Text("\(shop.genre.name)") // ジャンル名
+
                 Text("|")
                 Image(systemName: "mappin.and.ellipse")
-                Text("\(store.station_name)")
+                Text("\(shop.stationName)") // 最寄り駅名
             }
             .font(.subheadline)
             .lineLimit(2)
@@ -51,6 +50,6 @@ struct StoreInfoView: View {
 }
 
 #Preview {
-    StoreInfoView(isShowProfileModal: .constant(false)
-                  , store: MockData.stores[1])
+    StoreInfoView(isShowProfileModal: .constant(false), shop: MockShop.mockShop)
 }
+

@@ -8,26 +8,30 @@
 import SwiftUI
 
 struct CardStackView: View {
-    @StateObject var viewModel = CardsViewModel(service: CardService())
+    @StateObject var viewModel = CardsViewModel() // `CardService` の依存を削除
     
     @State private var isShowDiscoverSettings = false
-    
+
     var body: some View {
         NavigationStack {
-            VStack (spacing: 16){
+            VStack(spacing: 16) {
                 ZStack {
-                    ForEach(viewModel.cardModels) { card in
-                        CardView(viewModel: viewModel, model: card)
+                    ForEach(viewModel.shops) { shop in
+                        CardView(viewModel: viewModel, shop: shop) 
                     }
                 }
                 
                 // カードがなくなった時にボタンの位置が変わるのを防ぐ
-                if !viewModel.cardModels.isEmpty {
-                    HStack (spacing: 32){
+                if !viewModel.shops.isEmpty { // `cardModels` を `shops` に変更
+                    HStack(spacing: 32) {
                         BackCardButtonView(viewModel: viewModel)
                         SwipeActionButtonView(viewModel: viewModel)
                         DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
                     }
+                }
+            }.onAppear {
+                Task {
+                    await viewModel.fetchRestaurants() // データを非同期で取得
                 }
             }
             .toolbar {

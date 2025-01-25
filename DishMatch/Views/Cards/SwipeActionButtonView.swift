@@ -47,5 +47,5 @@ struct SwipeActionButtonView: View {
 }
 
 #Preview {
-    SwipeActionButtonView(viewModel: CardsViewModel(service: CardService()))
+    SwipeActionButtonView(viewModel: CardsViewModel())
 }

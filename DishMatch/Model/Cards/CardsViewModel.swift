@@ -9,47 +9,50 @@ import Foundation
 
 @MainActor
 class CardsViewModel: ObservableObject {
-    @Published var cardModels = [CardModel]()
-    // SwipeAction型で、カードのスワイプ操作「いいね」や「拒否」の状態を保持する
-    @Published var buttonSwipeAction: SwipeAction?
-    
-    private let service: CardService
-    // 一時的に削除されたカードを保存する配列
-    private var removedCards: [CardModel] = []
-    // removedCardsに保存する最大数
-    private let maxRemovedCardsCount = 5
-    
-    init(service: CardService) {
-        self.service = service
+    @Published var shops = [Shop]() // Shopデータを直接保持
+    @Published var buttonSwipeAction: SwipeAction? // スワイプアクションを保持
+
+    // 一時的に削除されたShopを保存する配列
+    private var removedShops: [Shop] = []
+    // removedShopsに保存する最大数
+    private let maxRemovedShopsCount = 5
+
+    private let restaurantViewModel = RestaurantViewModel() // RestaurantViewModelを利用
+
+    init() {
         Task {
-            await fetchCardModels()
+            await fetchRestaurants() // fetchCardModelsをfetchRestaurantsに置き換え
         }
     }
-    
-    // カードのデータを取得する
-    func fetchCardModels() async {
+
+    // `Shop` データをAPIから取得する
+    func fetchRestaurants() async {
         do {
-            self.cardModels = try await service.fetchCardModels()
+            await restaurantViewModel.fetchRestaurants() // APIからデータを取得
+            self.shops = restaurantViewModel.restaurants // データを更新
         } catch {
-            print("DEBUG: fetchCardModels error \(error)")
+            print("DEBUG: fetchRestaurants error \(error)")
         }
     }
-    /// 指定されたカードをcardModelsから削除し、removedCardsに保存する
-    func removeCard(_ card: CardModel) {
-        guard let index = cardModels.firstIndex(where: { $0.id == card.id }) else { return }
-        // カードを削除し、removedCardsに追加
-        let removedCard = cardModels.remove(at: index)
-        removedCards.append(removedCard)
-        // removedCardsがmaxRemovedCardsCountを超えた場合、最古のカードを削除
-        if removedCards.count > maxRemovedCardsCount {
-            removedCards.removeFirst()
+
+    /// 指定されたShopをshopsから削除し、removedShopsに保存する
+    func removeShop(_ shop: Shop) {
+        guard let index = shops.firstIndex(where: { $0.id == shop.id }) else { return }
+        // Shopを削除し、removedShopsに追加
+        let removedShop = shops.remove(at: index)
+        removedShops.append(removedShop)
+        // removedShopsがmaxRemovedShopsCountを超えた場合、最古のShopを削除
+        if removedShops.count > maxRemovedShopsCount {
+            removedShops.removeFirst()
         }
-        print("DEBUG: Removed card with storeName: \(removedCard.store.storeName)")
+        print("DEBUG: Removed shop with name: \(removedShop.name)")
     }
-    /// BackCardボタンが押された時に、removedCardsの最後のカードを元のcardModelsに戻す
-    func restoreLastRemovedCard() {
-        guard let lastRemovedCard = removedCards.last else { return }
-        removedCards.removeLast()
-        cardModels.insert(lastRemovedCard, at: 0)
+
+    /// BackCardボタンが押された時に、removedShopsの最後のShopを元のshopsに戻す
+    func restoreLastRemovedShop() {
+        guard let lastRemovedShop = removedShops.last else { return }
+        removedShops.removeLast()
+        shops.insert(lastRemovedShop, at: 0)
     }
 }
+

@@ -17,7 +17,7 @@ struct Results: Decodable {
 }
 
 // 各レストランの情報を表す構造体
-struct Shop: Decodable,Identifiable {
+struct Shop: Decodable,Identifiable,Equatable {
     /// 識別子 (UUIDを生成)
     let id = UUID()
     // レストラン名
@@ -52,6 +52,9 @@ struct Shop: Decodable,Identifiable {
         // "station_name" というJSONキーを stationName にマッピング
         case stationName = "station_name"
     }
+    static func == (lhs: Shop, rhs: Shop) -> Bool {
+           return lhs.id == rhs.id
+       }
 }
 
 struct Genre: Decodable {

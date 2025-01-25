@@ -5,59 +5,64 @@
 //  Created by 大江悠都 on 2025/01/23.
 //
 
+//
+//  StoreProfileView.swift
+//  DishMatch
+//
+//  Created by 大江悠都 on 2025/01/23.
+//
+
 import SwiftUI
 
 struct StoreProfileView: View {
-    
     @State private var currentImageIndex: Int = 0
-    
-    let model: CardModel
-    let store: Store
-    
+
+    let shop: Shop // `Shop` を直接使用
+
     var body: some View {
         ZStack {
             VStack {
                 ScrollView {
                     VStack {
-                        Image(store.profileImageURLs[currentImageIndex])
+                        Image(shop.photo.mobile.l) // `Shop` の画像URLを使用
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(maxWidth: .infinity, maxHeight: 300) // 画像のサイズ設定
-                        
+
                         // 店舗情報
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(store.storeName)
+                                Text(shop.name) // 店舗名
                                     .font(.title)
                                     .fontWeight(.semibold)
                                     .padding(.top, 15)
                                 Spacer()
                             }
-                            
+
                             HStack {
                                 Image(systemName: "fork.knife")
-                                Text("\(store.genre)")
-                                    
+                                Text("\(shop.genre.name)") // ジャンル名
+
                                 Text("|")
                                 Image(systemName: "mappin.and.ellipse")
-                                Text("\(store.station_name)")
+                                Text("\(shop.stationName)") // 最寄り駅名
                             }
                             .foregroundStyle(Color("FC"))
                             .font(.caption)
                             .lineLimit(2)
-                            
+
                             Text("店舗情報  (詳細)")
                                 .foregroundStyle(Color("FC"))
                                 .fontWeight(.semibold)
                                 .padding(.top, 20)
-                            
+
                             Spacer()
                         }
                         .padding()
                         .background(Color("WB"))
                         .cornerRadius(40)
                         .offset(y: -30)
-                        
+
                         ProfileDismissButtonView()
                             .offset(x: 145, y: -210)
                     }
@@ -75,5 +80,8 @@ struct StoreProfileView: View {
 }
 
 #Preview {
-    StoreProfileView(model: CardModel(store: MockData.stores[1]), store: MockData.stores[1])
+    // MockShop を使用してプレビュー
+    StoreProfileView(shop: MockShop.mockShop)
 }
+
+
