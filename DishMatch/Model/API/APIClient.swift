@@ -8,35 +8,15 @@
 import Foundation
 
 final class APIClient {
-    func fetchRestaurantData(keyword: String?, range: String, genre: String?, completion: @escaping (Result<StoreDataModel, APIError>) -> Void) {
-        let apiURL = createAPIRequestURL(keyword: keyword, range: range, genre: genre)
-        
-        guard let url = apiURL else {
-            completion(.failure(APIError.failCreateURL))
-            return
+    func fetchRestaurantData(keyword: String?, range: String, genre: String?) async throws -> StoreDataModel {
+        guard let url = createAPIRequestURL(keyword: keyword, range: range, genre: genre) else {
+            throw APIError.failCreateURL
         }
         
-        Task.detached {
-            URLSession.shared.dataTask(with: url) { (data, _, error) in
-                guard let data else {
-                    completion(.failure(APIError.sessionError))
-                    return
-                }
-                
-                if let error {
-                    completion(.failure(APIError.requestError(error)))
-                    return
-                }
-                
-                do {
-                    let responseData = try self.decodeAPIResponse(responseData: data)
-                    completion(.success(responseData))
-                } catch let error {
-                    completion(.failure(APIError.decodeError(error)))
-                }
-            }.resume()
-        }
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try decodeAPIResponse(responseData: data)
     }
+    
     private func createAPIRequestURL(keyword: String?, range: String, genre: String?) -> URL? {
         let locationManager = LocationManager()
         let baseURL: URL? = URL(string: "https://webservice.recruit.co.jp/hotpepper/gourmet/v1")
@@ -67,7 +47,6 @@ final class APIClient {
     
     private func decodeAPIResponse(responseData: Data) throws -> StoreDataModel {
         let decoder = JSONDecoder()
-        let restaurantData = try decoder.decode(StoreDataModel.self, from: responseData)
-        return restaurantData
+        return try decoder.decode(StoreDataModel.self, from: responseData)
     }
 }

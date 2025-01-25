@@ -17,7 +17,9 @@ struct Results: Decodable {
 }
 
 // 各レストランの情報を表す構造体
-struct Shop: Decodable {
+struct Shop: Decodable,Identifiable {
+    /// 識別子 (UUIDを生成)
+    let id = UUID()
     // レストラン名
     let name: String
     // ジャンル情報（ジャンル名、キャッチフレーズなど）
