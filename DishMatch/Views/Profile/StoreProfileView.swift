@@ -24,10 +24,32 @@ struct StoreProfileView: View {
             VStack {
                 ScrollView {
                     VStack {
-                        Image(shop.photo.mobile.l) // `Shop` の画像URLを使用
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, maxHeight: 300) // 画像のサイズ設定
+                        AsyncImage(url: URL(string: shop.photo.pc.l)) { phase in
+                            switch phase {
+                            case .empty:
+                                // ローディング中のプレースホルダー
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: 300)
+                                    .background(Color.gray.opacity(0.3))
+                            case .success(let image):
+                                // 正常に画像が取得できた場合
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(maxWidth: .infinity, maxHeight: 300)
+                                    .clipped()
+                            case .failure:
+                                // エラー時の代替画像
+                                Image(systemName: "photo")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(maxWidth: .infinity, maxHeight: 300)
+                                    .background(Color.gray.opacity(0.3))
+                                    .clipped()
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
 
                         // 店舗情報
                         VStack(alignment: .leading, spacing: 8) {

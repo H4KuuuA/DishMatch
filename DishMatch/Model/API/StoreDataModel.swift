@@ -70,10 +70,10 @@ struct Genre: Decodable {
 }
 
 struct Photo: Decodable {
-    let mobile: Mobile
+    let pc: Pc
 }
 
-struct Mobile: Decodable {
+struct Pc: Decodable {
     let l: String
 }
 

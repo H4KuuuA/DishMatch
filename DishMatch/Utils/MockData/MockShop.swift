@@ -11,7 +11,7 @@ struct MockShop {
     static let mockShop = Shop(
         name: "Sushi Restaurant",
         genre: Genre(name: "Japanese", genreCatch: "Authentic Sushi Experience"),
-        photo: Photo(mobile: Mobile(l: "https://example.com/image1.jpg")),
+        photo: Photo(pc: Pc(l: "https://example.com/image1.jpg")),
         address: "123 Tokyo Street",
         close: "None",
         open: "11:00 AM - 9:00 PM",

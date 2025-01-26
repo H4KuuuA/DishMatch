@@ -41,7 +41,7 @@ struct RestaurantRowView: View {
     
     var body: some View {
         HStack {
-            AsyncImage(url: URL(string: restaurant.photo.mobile.l)) { image in
+            AsyncImage(url: URL(string: restaurant.photo.pc.l)) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -77,7 +77,7 @@ struct RestaurantDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                AsyncImage(url: URL(string: shop.photo.mobile.l)) { image in
+                AsyncImage(url: URL(string: shop.photo.pc.l)) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)

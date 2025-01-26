@@ -30,6 +30,9 @@ class CardsViewModel: ObservableObject {
         do {
             await restaurantViewModel.fetchRestaurants() // APIからデータを取得
             self.shops = restaurantViewModel.restaurants // データを更新
+            for shop in self.shops {
+                        print("DEBUG: Image URL - \(shop.photo.pc.l)")
+                    }
         } catch {
             print("DEBUG: fetchRestaurants error \(error)")
         }
