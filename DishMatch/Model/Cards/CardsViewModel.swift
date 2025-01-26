@@ -20,9 +20,9 @@ class CardsViewModel: ObservableObject {
     private let restaurantViewModel = RestaurantViewModel() // RestaurantViewModelを利用
 
     init() {
-        Task {
-            await fetchRestaurants() // fetchCardModelsをfetchRestaurantsに置き換え
-        }
+//        Task {
+//            await fetchRestaurants() // fetchCardModelsをfetchRestaurantsに置き換え
+//        }
     }
 
     // `Shop` データをAPIから取得する

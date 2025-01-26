@@ -8,14 +8,10 @@
 import SwiftUI
 
 struct ResetCardButtonView: View {
-    @ObservedObject var viewModel: CardsViewModel
-    @Binding var isDataFetched: Bool
     @Binding var viewID: UUID // ビュー更新用の識別子
 
     var body: some View {
         Button {
-            viewModel.restoreLastRemovedShop() // カードを戻す
-            isDataFetched = false // 再リクエストをトリガー
             viewID = UUID() // ビューをリロード
         } label: {
             Image(systemName: "arrow.counterclockwise")
@@ -33,10 +29,7 @@ struct ResetCardButtonView: View {
 }
 
 #Preview {
-    ResetCardButtonView(
-        viewModel: CardsViewModel(),
-        isDataFetched: .constant(false),
-        viewID: .constant(UUID())
-    )
+    ResetCardButtonView(viewID: .constant(UUID()))
 }
+
 

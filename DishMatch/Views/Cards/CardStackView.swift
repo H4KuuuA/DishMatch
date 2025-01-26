@@ -9,7 +9,6 @@ import SwiftUI
 
 struct CardStackView: View {
     @StateObject private var restaurantViewModel = RestaurantViewModel()
-    @State private var isDataFetched = false // データ取得のフラグ
     @State private var viewID = UUID() // ビュー更新用の識別子
     @State private var isShowDiscoverSettings = false
 
@@ -32,24 +31,11 @@ struct CardStackView: View {
                         }
                     }
 
-                    if !restaurantViewModel.restaurants.isEmpty {
-                        HStack(spacing: 32) {
-                            ResetCardButtonView(
-                                viewModel: CardsViewModel(),
-                                isDataFetched: $isDataFetched,
-                                viewID: $viewID // UUIDを渡す
-                            )
-                            SwipeActionButtonView(viewModel: CardsViewModel())
-                            DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
-                        }
+                    HStack(spacing: 32) {
+                        ResetCardButtonView(viewID: $viewID)
+                        SwipeActionButtonView(viewModel: CardsViewModel())
+                        DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
                     }
-                }
-            }
-            .id(viewID) // `viewID` を利用してビューをリロード
-            .onAppear {
-                if !isDataFetched {
-                    restaurantViewModel.fetchRestaurants() // データ取得
-                    isDataFetched = true // フラグを更新
                 }
             }
             .toolbar {
@@ -65,7 +51,14 @@ struct CardStackView: View {
                 }
             }
             .fullScreenCover(isPresented: $isShowDiscoverSettings) {
-                DiscoverySettingsView()
+                DiscoverySettingsView(viewID: $viewID)
+            }
+            .id(viewID) // `viewID` を利用してビューをリロード
+            .onChange(of: viewID) { _ in
+                restaurantViewModel.fetchRestaurants() // データ取得をトリガー
+            }
+            .onAppear {
+                restaurantViewModel.fetchRestaurants() // 初回データ取得
             }
         }
     }
@@ -74,5 +67,6 @@ struct CardStackView: View {
 #Preview {
     CardStackView()
 }
+
 
 

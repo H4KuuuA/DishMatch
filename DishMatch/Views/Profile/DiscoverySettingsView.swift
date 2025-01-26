@@ -5,17 +5,20 @@
 //  Created by 大江悠都 on 2025/01/23.
 //
 
+//
+//  DiscoverySettingsView.swift
+//  DishMatch
+//
+//  Created by 大江悠都 on 2025/01/23.
+//
+
 import SwiftUI
 
 struct DiscoverySettingsView: View {
     @Environment(\.dismiss) var dismiss
-    @State private var selectedRange: MenuRangeType = .range5
-    @State private var budget: Double = 2000
-    @State private var isAllYouCanDrink: Bool = false
-    @State private var isAllYouCanEat: Bool = false
-    @State private var isPrivateRoomAvailable: Bool = false
-    @State private var isTatamiRoomAvailable: Bool = false
-    @State private var isParkingAvailable: Bool = false
+    @Binding var viewID: UUID // ビュー更新用の識別子
+    // シングルトンインスタンスを @ObservedObject として利用
+    @ObservedObject private var settings = DiscoverySettings.shared
 
     var body: some View {
         NavigationView {
@@ -25,15 +28,15 @@ struct DiscoverySettingsView: View {
                     HStack {
                         Text("距離")
                         Spacer()
-                        Text(selectedRange.range)
+                        Text(settings.selectedRange.range)
                             .foregroundColor(.gray)
                     }
-                    Picker("距離", selection: $selectedRange) {
+                    Picker("距離", selection: $settings.selectedRange) {
                         ForEach(MenuRangeType.allCases, id: \.self) { rangeOption in
                             Text(rangeOption.range).tag(rangeOption)
                         }
                     }
-                    .pickerStyle(SegmentedPickerStyle()) // もしくは他のスタイルを使う
+                    .pickerStyle(SegmentedPickerStyle())
                 }
                 
                 // 予算設定
@@ -41,24 +44,24 @@ struct DiscoverySettingsView: View {
                     HStack {
                         Text("予算")
                         Spacer()
-                        Text("\(Int(budget)) 円")
+                        Text("\(Int(settings.budget)) 円")
                             .foregroundColor(.gray)
                     }
-                    Slider(value: $budget, in: 500...20000, step: 100)
+                    Slider(value: $settings.budget, in: 500...20000, step: 100)
                         .tint(.orange)
                 }
 
                 // その他の設定
                 Section {
-                    Toggle("飲み放題", isOn: $isAllYouCanDrink)
+                    Toggle("飲み放題", isOn: $settings.isAllYouCanDrink)
                         .tint(.orange)
-                    Toggle("食べ放題", isOn: $isAllYouCanEat)
+                    Toggle("食べ放題", isOn: $settings.isAllYouCanEat)
                         .tint(.orange)
-                    Toggle("個室あり", isOn: $isPrivateRoomAvailable)
+                    Toggle("個室あり", isOn: $settings.isPrivateRoomAvailable)
                         .tint(.orange)
-                    Toggle("座敷", isOn: $isTatamiRoomAvailable)
+                    Toggle("座敷", isOn: $settings.isTatamiRoomAvailable)
                         .tint(.orange)
-                    Toggle("駐車場", isOn: $isParkingAvailable)
+                    Toggle("駐車場", isOn: $settings.isParkingAvailable)
                         .tint(.orange)
                 } header: {
                     Text("こだわり")
@@ -71,16 +74,18 @@ struct DiscoverySettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        // 完了処理：設定内容をコンソールで表示（実際は保存処理など）
-                        print("距離設定: \(selectedRange.rangeValue)")
-                        print("予算設定: \(Int(budget)) 円")
-                        print("飲み放題: \(isAllYouCanDrink ? "有効" : "無効")")
-                        print("食べ放題: \(isAllYouCanEat ? "有効" : "無効")")
-                        print("個室あり: \(isPrivateRoomAvailable ? "有効" : "無効")")
-                        print("座敷: \(isTatamiRoomAvailable ? "有効" : "無効")")
+                        // 完了処理：設定内容をコンソールで表示
+                        print("距離設定: \(settings.selectedRange.range)")
+                        print("予算設定: \(Int(settings.budget)) 円")
+                        print("飲み放題: \(settings.isAllYouCanDrink ? "有効" : "無効")")
+                        print("食べ放題: \(settings.isAllYouCanEat ? "有効" : "無効")")
+                        print("個室あり: \(settings.isPrivateRoomAvailable ? "有効" : "無効")")
+                        print("座敷: \(settings.isTatamiRoomAvailable ? "有効" : "無効")")
+                        print("駐車場: \(settings.isParkingAvailable ? "有効" : "無効")")
+                        viewID = UUID() // ビューをリロード
                         dismiss()
                     } label: {
-                        Text ("完了")
+                        Text("完了")
                             .foregroundColor(.blue)
                     }
                 }
@@ -90,5 +95,5 @@ struct DiscoverySettingsView: View {
 }
 
 #Preview {
-    DiscoverySettingsView()
+    DiscoverySettingsView(viewID: .constant(UUID()))
 }
