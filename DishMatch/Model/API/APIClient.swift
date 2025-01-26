@@ -13,9 +13,10 @@ final class APIClient {
             throw APIError.failCreateURL
         }
         
+        print("DEBUG: APIリクエストURL: \(url.absoluteString)")
         let locationManager = LocationManager.shared
         print("リクエスト時の緯度: \(locationManager.latitude), 経度: \(locationManager.longitude), 検索範囲: \(range)")
-
+        
         let (data, response) = try await URLSession.shared.data(from: url)
         
         if let httpResponse = response as? HTTPURLResponse {
@@ -28,8 +29,8 @@ final class APIClient {
         
         return try decodeAPIResponse(responseData: data)
     }
-
-
+    
+    
     
     private func createAPIRequestURL(keyword: String?, range: String, genre: String?) -> URL? {
         let locationManager = LocationManager.shared
@@ -38,10 +39,10 @@ final class APIClient {
         let apiKey = keyManager.getValue(forKey: "apiKey")
         let format = "json"
         var urlComponents = URLComponents(url: baseURL!, resolvingAgainstBaseURL: true)
-
+        
         let latitude = String(format: "%.6f", locationManager.latitude) // 小数点以下6桁に制限
         let longitude = String(format: "%.6f", locationManager.longitude) // 小数点以下6桁に制限
-
+        
         var queryItems = [
             URLQueryItem(name: "key", value: apiKey),
             URLQueryItem(name: "lat", value: latitude),
@@ -50,19 +51,19 @@ final class APIClient {
             URLQueryItem(name: "count", value: "20"),
             URLQueryItem(name: "range", value: range),
         ]
-
+        
         if let keyword {
             queryItems.append(URLQueryItem(name: "keyword", value: keyword))
         }
-
+        
         if let genre {
             queryItems.append(URLQueryItem(name: "genre", value: genre))
         }
-
+        
         urlComponents?.queryItems = queryItems
         return urlComponents?.url
     }
-
+    
     
     
     private func decodeAPIResponse(responseData: Data) throws -> StoreDataModel {
