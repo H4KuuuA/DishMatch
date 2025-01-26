@@ -17,6 +17,7 @@ struct InfoRow: View {
                 .font(.headline)
                 .foregroundColor(Color("FC"))
                 .frame(width: 80, alignment: .leading)
+                .padding(.trailing)
             Text(detail)
                 .font(.subheadline) 
             Spacer()

@@ -55,10 +55,12 @@ struct StoreProfileView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text(shop.name) // 店舗名
-                                    .font(.title)
+                                    .font(.title2)
                                     .fontWeight(.semibold)
                                     .padding(.top, 15)
                                 Spacer()
+                                ProfileDismissButtonView()
+                                    .padding(.horizontal)
                             }
 
                             HStack {
@@ -77,16 +79,37 @@ struct StoreProfileView: View {
                                 .foregroundStyle(Color("FC"))
                                 .fontWeight(.semibold)
                                 .padding(.top, 20)
-
+                            Spacer()
+                            InfoRow(title: "住所", detail: shop.address)
+                                .padding(.vertical, 6)
+                            Divider()
+                            InfoRow(title: "営業時間", detail: shop.open)
+                                .padding(.vertical, 6)
+                            Divider()
+                            InfoRow(title: "定休日", detail: shop.close)
+                                .padding(.vertical, 6)
+                            Divider()
+                            if let url = URL(string: shop.urls.pc) {
+                                HStack {
+                                    Text("お店のHP")
+                                        .foregroundColor(Color("FC"))
+                                        .font(.headline)
+                                        .frame(width: 80, alignment: .leading)
+                                        .padding(.trailing)
+                                    Link("リンクはこちら", destination: url)
+                                        .foregroundColor(.blue) // リンクカラー
+                                    Spacer()
+                                }
+                                .padding(.vertical, 6)
+                            }
                             Spacer()
                         }
                         .padding()
                         .background(Color("WB"))
                         .cornerRadius(40)
-                        .offset(y: -30)
+                        .offset(y: -40)
 
-                        ProfileDismissButtonView()
-                            .offset(x: 145, y: -210)
+                        
                     }
                 }
             }
