@@ -11,6 +11,7 @@ struct CardStackView: View {
     @StateObject private var restaurantViewModel = RestaurantViewModel()
     @State private var viewID = UUID() // ビュー更新用の識別子
     @State private var isShowDiscoverSettings = false
+    @State private var isFirstAppearance = true
 
     var body: some View {
         NavigationStack {
@@ -58,7 +59,11 @@ struct CardStackView: View {
                 restaurantViewModel.fetchRestaurants() // データ取得をトリガー
             }
             .onAppear {
-                restaurantViewModel.fetchRestaurants() // 初回データ取得
+                if isFirstAppearance {
+                    isFirstAppearance = false
+                    restaurantViewModel.fetchRestaurants() // 初回データ取得
+                }
+                
             }
         }
     }
