@@ -8,31 +8,41 @@
 import SwiftUI
 
 struct CardStackView: View {
-    @StateObject var viewModel = CardsViewModel() // `CardService` の依存を削除
-    
+    @StateObject private var restaurantViewModel = RestaurantViewModel() // RestaurantViewModelを直接利用
     @State private var isShowDiscoverSettings = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
-                ZStack {
-                    ForEach(viewModel.shops) { shop in
-                        CardView(viewModel: viewModel, shop: shop) 
+                if restaurantViewModel.isLoading {
+                    // ローディング中のインジケータ
+                    ProgressView("データを読み込んでいます...")
+                        .font(.title2)
+                        .padding()
+                } else if restaurantViewModel.restaurants.isEmpty {
+                    // データが空の場合の表示
+                    Text("表示する店舗がありません")
+                        .foregroundColor(.gray)
+                        .font(.title3)
+                        .padding()
+                } else {
+                    ZStack {
+                        ForEach(restaurantViewModel.restaurants) { shop in
+                            CardView(viewModel: CardsViewModel(), shop: shop) // データを直接渡す
+                        }
+                    }
+
+                    if !restaurantViewModel.restaurants.isEmpty {
+                        HStack(spacing: 32) {
+                            BackCardButtonView(viewModel: CardsViewModel()) // 仮のViewModel
+                            SwipeActionButtonView(viewModel: CardsViewModel()) // 仮のViewModel
+                            DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
+                        }
                     }
                 }
-                
-                // カードがなくなった時にボタンの位置が変わるのを防ぐ
-                if !viewModel.shops.isEmpty { // `cardModels` を `shops` に変更
-                    HStack(spacing: 32) {
-                        BackCardButtonView(viewModel: viewModel)
-                        SwipeActionButtonView(viewModel: viewModel)
-                        DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
-                    }
-                }
-            }.onAppear {
-                Task {
-                    await viewModel.fetchRestaurants() // データを非同期で取得
-                }
+            }
+            .onAppear {
+                restaurantViewModel.fetchRestaurants() // データ取得
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -56,3 +66,4 @@ struct CardStackView: View {
 #Preview {
     CardStackView()
 }
+

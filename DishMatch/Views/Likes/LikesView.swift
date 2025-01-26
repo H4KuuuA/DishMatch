@@ -13,7 +13,7 @@ struct LikesView: View {
             TextFieldLikeView()
             GenreTabBarView(LikesViewModel: LikesViewModel(stores: MockData.stores), isGenreActive: true)
             
-            RestaurantListTestView()
+            //RestaurantListTestView()
         }
     }
 }
