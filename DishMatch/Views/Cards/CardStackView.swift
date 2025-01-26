@@ -9,19 +9,18 @@ import SwiftUI
 
 struct CardStackView: View {
     @StateObject private var restaurantViewModel = RestaurantViewModel()
-    @State private var isDataFetched = false // フラグでデータ取得を管理
+    @State private var isDataFetched = false // データ取得のフラグ
+    @State private var viewID = UUID() // ビュー更新用の識別子
     @State private var isShowDiscoverSettings = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
                 if restaurantViewModel.isLoading {
-                    // ローディング中のインジケータ
                     ProgressView("データを読み込んでいます...")
                         .font(.title2)
                         .padding()
                 } else if restaurantViewModel.restaurants.isEmpty {
-                    // データが空の場合の表示
                     Text("表示する店舗がありません")
                         .foregroundColor(.gray)
                         .font(.title3)
@@ -35,17 +34,22 @@ struct CardStackView: View {
 
                     if !restaurantViewModel.restaurants.isEmpty {
                         HStack(spacing: 32) {
-                            BackCardButtonView(viewModel: CardsViewModel())
+                            ResetCardButtonView(
+                                viewModel: CardsViewModel(),
+                                isDataFetched: $isDataFetched,
+                                viewID: $viewID // UUIDを渡す
+                            )
                             SwipeActionButtonView(viewModel: CardsViewModel())
                             DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
                         }
                     }
                 }
             }
+            .id(viewID) // `viewID` を利用してビューをリロード
             .onAppear {
                 if !isDataFetched {
                     restaurantViewModel.fetchRestaurants() // データ取得
-                    isDataFetched = true // フラグを更新して再取得を防ぐ
+                    isDataFetched = true // フラグを更新
                 }
             }
             .toolbar {
