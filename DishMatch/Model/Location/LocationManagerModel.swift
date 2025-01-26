@@ -14,6 +14,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
     @Published var latitude: Double = 0.0
     @Published var longitude: Double = 0.0
+    private var locationContinuation: CheckedContinuation<Void, Never>?
 
     private override init() {
         super.init()
@@ -38,7 +39,17 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         DispatchQueue.main.async {
             self.latitude = newLocation.coordinate.latitude
             self.longitude = newLocation.coordinate.longitude
+            self.locationContinuation?.resume() // 位置情報取得完了を通知
+            self.locationContinuation = nil
+        }
+    }
+
+    func requestLocationPermissionIfNeeded() async {
+        guard latitude == 0.0 && longitude == 0.0 else { return } // 既に取得済みの場合はスキップ
+        await withCheckedContinuation { continuation in
+            self.locationContinuation = continuation
         }
     }
 }
+
 

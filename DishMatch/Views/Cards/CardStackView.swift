@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct CardStackView: View {
-    @StateObject private var restaurantViewModel = RestaurantViewModel() // RestaurantViewModelを直接利用
+    @StateObject private var restaurantViewModel = RestaurantViewModel()
+    @State private var isDataFetched = false // フラグでデータ取得を管理
     @State private var isShowDiscoverSettings = false
 
     var body: some View {
@@ -28,21 +29,24 @@ struct CardStackView: View {
                 } else {
                     ZStack {
                         ForEach(restaurantViewModel.restaurants) { shop in
-                            CardView(viewModel: CardsViewModel(), shop: shop) // データを直接渡す
+                            CardView(viewModel: CardsViewModel(), shop: shop)
                         }
                     }
 
                     if !restaurantViewModel.restaurants.isEmpty {
                         HStack(spacing: 32) {
-                            BackCardButtonView(viewModel: CardsViewModel()) // 仮のViewModel
-                            SwipeActionButtonView(viewModel: CardsViewModel()) // 仮のViewModel
+                            BackCardButtonView(viewModel: CardsViewModel())
+                            SwipeActionButtonView(viewModel: CardsViewModel())
                             DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
                         }
                     }
                 }
             }
             .onAppear {
-                restaurantViewModel.fetchRestaurants() // データ取得
+                if !isDataFetched {
+                    restaurantViewModel.fetchRestaurants() // データ取得
+                    isDataFetched = true // フラグを更新して再取得を防ぐ
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -66,4 +70,5 @@ struct CardStackView: View {
 #Preview {
     CardStackView()
 }
+
 
