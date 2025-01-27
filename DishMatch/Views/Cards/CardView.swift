@@ -93,6 +93,7 @@ private extension CardView {
             xOffset = 500
             degrees = 12
         } completion: {
+            viewModel.likeShop(shop)
             viewModel.removeShop(shop) // `removeCard` を `removeShop` に変更
         }
     }
