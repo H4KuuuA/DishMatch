@@ -18,6 +18,8 @@ class CardsViewModel: ObservableObject {
     private let maxRemovedShopsCount = 5
 
     private let restaurantViewModel = RestaurantViewModel()
+    // お気に入りリスト
+    var likedShops: [Shop] = []
 
     init() {
 //        Task {
@@ -50,12 +52,21 @@ class CardsViewModel: ObservableObject {
         }
         print("DEBUG: Removed shop with name: \(removedShop.name)")
     }
-
+    /// 指定されたShopをlikedShopsリストに追加する
+        func likeShop(_ shop: Shop) {
+            // 既にlikedShopsに存在する場合は追加しない
+            guard !likedShops.contains(where: { $0.id == shop.id }) else {
+                print("DEBUG: Shop with name: \(shop.name) is already liked.")
+                return
+            }
+            likedShops.append(shop)
+            print("DEBUG: Liked shop with name: \(shop.name)")
+        }
     /// BackCardボタンが押された時に、removedShopsの最後のShopを元のshopsに戻す
-    func restoreLastRemovedShop() {
-        guard let lastRemovedShop = removedShops.last else { return }
-        removedShops.removeLast()
-        shops.insert(lastRemovedShop, at: 0)
-    }
+//    func restoreLastRemovedShop() {
+//        guard let lastRemovedShop = removedShops.last else { return }
+//        removedShops.removeLast()
+//        shops.insert(lastRemovedShop, at: 0)
+//    }
 }
 
