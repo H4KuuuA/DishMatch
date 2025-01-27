@@ -13,7 +13,7 @@ struct CardStackView: View {
     @State private var viewID = UUID() // ビュー更新用の識別子
     @State private var isShowDiscoverSettings = false
     @State private var isFirstAppearance = true
-
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
@@ -32,10 +32,10 @@ struct CardStackView: View {
                             CardView(viewModel: viewModel, shop: shop)
                         }
                     }
-
+                    
                     HStack(spacing: 32) {
                         ResetCardButtonView(viewID: $viewID)
-                        SwipeActionButtonView(viewModel: viewModel) 
+                        SwipeActionButtonView(viewModel: viewModel)
                         DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
                     }
                 }
@@ -63,6 +63,11 @@ struct CardStackView: View {
                 if isFirstAppearance {
                     isFirstAppearance = false
                     restaurantViewModel.fetchRestaurants() // 初回データ取得
+                }
+                // データ同期を非同期処理の完了後に実行
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // デバッグ用の遅延
+                    viewModel.shops = restaurantViewModel.restaurants
+                    print("DEBUG⭐️: Synced restaurants to viewModel.shops: \(viewModel.shops.map { $0.name })")
                 }
             }
         }
