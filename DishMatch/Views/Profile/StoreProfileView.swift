@@ -81,13 +81,16 @@ struct StoreProfileView: View {
                                 .padding(.top, 20)
                             Spacer()
                             InfoRow(title: "住所", detail: shop.address)
-                                .padding(.vertical, 6)
+                            
+                            Divider()
+                            InfoRow(title: "最寄りの駅", detail: "\(shop.stationName)駅")
+                            
                             Divider()
                             InfoRow(title: "営業時間", detail: shop.open)
-                                .padding(.vertical, 6)
+                                
                             Divider()
                             InfoRow(title: "定休日", detail: shop.close)
-                                .padding(.vertical, 6)
+                                
                             Divider()
                             // HPリンク
                             if let url = URL(string: shop.urls.pc) {

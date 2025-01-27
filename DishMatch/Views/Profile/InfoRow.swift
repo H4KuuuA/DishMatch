@@ -22,6 +22,7 @@ struct InfoRow: View {
                 .font(.subheadline) 
             Spacer()
         }
+        .padding(.vertical, 6)
         
     }
 }
