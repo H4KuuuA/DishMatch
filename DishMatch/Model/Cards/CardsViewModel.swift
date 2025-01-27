@@ -19,7 +19,7 @@ class CardsViewModel: ObservableObject {
 
     private let restaurantViewModel = RestaurantViewModel()
     // お気に入りリスト
-    var likedShops: [Shop] = []
+    private var likedShops: [Shop] = []
 
     init() {
 //        Task {
