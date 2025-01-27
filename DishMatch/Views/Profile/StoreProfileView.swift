@@ -89,6 +89,7 @@ struct StoreProfileView: View {
                             InfoRow(title: "定休日", detail: shop.close)
                                 .padding(.vertical, 6)
                             Divider()
+                            // HPリンク
                             if let url = URL(string: shop.urls.pc) {
                                 HStack {
                                     Text("お店のHP")
@@ -97,7 +98,7 @@ struct StoreProfileView: View {
                                         .frame(width: 80, alignment: .leading)
                                         .padding(.trailing)
                                     Link("リンクはこちら", destination: url)
-                                        .foregroundColor(.blue) // リンクカラー
+                                        .foregroundColor(.blue)
                                     Spacer()
                                 }
                                 .padding(.vertical, 6)
