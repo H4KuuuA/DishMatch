@@ -9,6 +9,7 @@ import Foundation
 
 struct MockShop {
     static let mockShop = Shop(
+        id : "12345",
         name: "Sushi Restaurant",
         genre: Genre(name: "Japanese", genreCatch: "Authentic Sushi Experience"),
         photo: Photo(pc: Pc(l: "https://example.com/image1.jpg")),

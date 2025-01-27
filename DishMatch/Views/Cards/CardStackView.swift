@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct CardStackView: View {
+    @ObservedObject var viewModel: CardsViewModel
     @StateObject private var restaurantViewModel = RestaurantViewModel()
     @State private var viewID = UUID() // ビュー更新用の識別子
     @State private var isShowDiscoverSettings = false
@@ -28,13 +29,13 @@ struct CardStackView: View {
                 } else {
                     ZStack {
                         ForEach(restaurantViewModel.restaurants) { shop in
-                            CardView(viewModel: CardsViewModel(), shop: shop)
+                            CardView(viewModel: viewModel, shop: shop)
                         }
                     }
 
                     HStack(spacing: 32) {
                         ResetCardButtonView(viewID: $viewID)
-                        SwipeActionButtonView(viewModel: CardsViewModel())
+                        SwipeActionButtonView(viewModel: viewModel) 
                         DiscoverSettingsButtonView(isShowDiscoverSettings: $isShowDiscoverSettings)
                     }
                 }
@@ -63,15 +64,14 @@ struct CardStackView: View {
                     isFirstAppearance = false
                     restaurantViewModel.fetchRestaurants() // 初回データ取得
                 }
-                
             }
         }
     }
 }
 
 #Preview {
-    CardStackView()
+    // モックデータ付きのCardsViewModelを渡してプレビュー
+    let mockViewModel = CardsViewModel()
+    return CardStackView(viewModel: mockViewModel)
 }
-
-
 

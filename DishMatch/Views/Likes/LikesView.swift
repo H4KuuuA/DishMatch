@@ -8,12 +8,13 @@
 import SwiftUI
 
 struct LikesView: View {
+    @StateObject var viewModel = CardsViewModel()
+    
     var body: some View {
         VStack {
             TextFieldLikeView()
             GenreTabBarView(LikesViewModel: LikesViewModel(stores: MockData.stores), isGenreActive: true)
-            
-            //RestaurantListTestView()
+            LikeShopsListView(viewModel: viewModel)
         }
     }
 }

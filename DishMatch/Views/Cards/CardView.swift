@@ -15,7 +15,7 @@ struct CardView: View {
     @State private var degrees: Double = 0
     @State private var isShowProfileModal = false
 
-    let shop: Shop // `CardModel` の代わりに `Shop` を直接使用
+    let shop: Shop
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -23,19 +23,16 @@ struct CardView: View {
                 AsyncImage(url: URL(string: shop.photo.pc.l)) { phase in
                     switch phase {
                     case .empty:
-                        // ローディング中のプレースホルダー
                         ProgressView()
                             .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
                             .background(Color.gray.opacity(0.3))
                     case .success(let image):
-                        // 正常に画像が取得できた場合
                         image
                             .resizable()
                             .scaledToFill()
                             .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
                             .clipped()
                     case .failure:
-                        // エラー時の代替画像
                         Image(systemName: "photo")
                             .resizable()
                             .scaledToFill()
@@ -46,9 +43,9 @@ struct CardView: View {
                         EmptyView()
                     }
                 }
-                    .overlay {
-                        ImageScrollingOverlay(currentImageIndex: $currentImageIndex, imagecount: imageCount)
-                    }
+                .overlay {
+                    ImageScrollingOverlay(currentImageIndex: $currentImageIndex, imagecount: imageCount)
+                }
                 CardImageIndicatorView(currentImageIndex: currentImageIndex, imageCount: imageCount)
                 SwipeActionIndicatorView(xOffset: $xOffset, screenCutOff: CGFloat(SizeConstants.screenCutOff))
             }
@@ -75,39 +72,37 @@ struct CardView: View {
     }
 }
 
-//
 private extension CardView {
-    // store.profileImageURLs配列の要素数を返す計算プロパティ
     var imageCount: Int {
-        return 1 // `Shop` 構造体では1枚の画像しか持たないため固定
+        return 1
     }
 }
-
 private extension CardView {
     func returnToCenter() {
         xOffset = 0
         degrees = 0
     }
+    /// Like
     func swipeRight() {
         withAnimation {
             xOffset = 500
             degrees = 12
         } completion: {
-            viewModel.likeShop(shop)
-            viewModel.removeShop(shop) // `removeCard` を `removeShop` に変更
+            viewModel.likeShop(shop) // 親から渡されたViewModelに追加
+            viewModel.removeShop(shop)
         }
     }
+    /// None
     func swipeLeft() {
         withAnimation {
             xOffset = -500
             degrees = -12
         } completion: {
-            viewModel.removeShop(shop) // `removeCard` を `removeShop` に変更
+            viewModel.removeShop(shop)
         }
     }
-    /// likeかrejectを受け取って、最上部のカードを適切にスワイプさせる関数
+
     func onReceiveSwipeAction(_ action: SwipeAction?) {
-        // アクションがnilの場合、早期リターン
         guard let action else { return }
 
         let topShop = viewModel.shops.last
@@ -121,21 +116,15 @@ private extension CardView {
             }
         }
     }
-}
 
-private extension CardView {
-    /// ドラッグ中の変化を処理
     func onDragChanged(_ value: _ChangedGesture<DragGesture>.Value) {
-        // ドラッグの移動に応じてカードの位置と回転を更新
         xOffset = value.translation.width
         degrees = Double(value.translation.width / 25)
     }
 
-    /// ドラッグ終了時の処理
     func onDragEnded(_ value: _ChangedGesture<DragGesture>.Value) {
         let width = value.translation.width
 
-        // 画面外にはみ出さないように戻す処理
         if abs(width) <= abs(CGFloat(SizeConstants.screenCutOff)) {
             returnToCenter()
             return
@@ -149,5 +138,8 @@ private extension CardView {
 }
 
 #Preview {
-    CardView(viewModel: CardsViewModel(), shop: MockShop.mockShop) 
+    let viewModel = CardsViewModel() // 一貫したインスタンスを利用
+    viewModel.shops = [MockShop.mockShop] // モックデータを追加
+    return CardView(viewModel: viewModel, shop: MockShop.mockShop)
 }
+

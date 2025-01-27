@@ -8,18 +8,26 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @StateObject var cardsViewModel = CardsViewModel() // 一元管理するCardsViewModel
+
     var body: some View {
-        TabView{
-            CardStackView()
-                .tabItem { Image (systemName: "fork.knife")}
+        TabView {
+            CardStackView(viewModel: cardsViewModel)
+                .tabItem {
+                    Image(systemName: "fork.knife")
+                }
                 .tag(0)
-            
-            LikesView()
-                .tabItem { Image (systemName: "heart.fill")}
+
+            LikesView(viewModel: cardsViewModel)
+                .tabItem {
+                    Image(systemName: "heart.fill")
+                }
                 .tag(1)
-            
+
             UserProfileView()
-                .tabItem{ Image (systemName: "person")}
+                .tabItem {
+                    Image(systemName: "person")
+                }
                 .tag(2)
         }
         .tint(.primary)
