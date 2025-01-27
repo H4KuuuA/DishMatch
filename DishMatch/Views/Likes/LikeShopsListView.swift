@@ -16,20 +16,20 @@ struct LikeShopsListView: View {
                 LazyVStack (spacing: 16) {
                     ForEach(viewModel.likedShops) { shop in
                         Button(action: {
-                            // カードをタップしたときのアクションを記述
                             print("DEBUG: \(shop.name) tapped")
+                            
                         }) {
                             HStack(alignment: .top, spacing: 16) {
                                 AsyncImage(url: URL(string: shop.photo.pc.l)) { image in
                                     image
                                         .resizable()
                                         .scaledToFill()
-                                        .frame(width: 80, height: 80) // サイズを固定
+                                        .frame(width: 80, height: 80)
                                         .cornerRadius(8)
-                                        .clipped() // フレーム外を切り取る
+                                        .clipped()
                                 } placeholder: {
                                     Color.gray
-                                        .frame(width: 80, height: 80) // プレースホルダー用サイズ
+                                        .frame(width: 80, height: 80)
                                         .cornerRadius(8)
                                 }
                                 
@@ -38,11 +38,11 @@ struct LikeShopsListView: View {
                                         .font(.headline)
                                     HStack {
                                         Image(systemName: "fork.knife")
-                                        Text("\(shop.genre.name)") // ジャンル名
+                                        Text("\(shop.genre.name)")
                                         
                                         Text("|")
                                         Image(systemName: "mappin.and.ellipse")
-                                        Text("\(shop.stationName)") // 最寄り駅名
+                                        Text("\(shop.stationName)")
                                     }
                                     .foregroundStyle(Color("FC").opacity(0.8))
                                     .font(.caption)
