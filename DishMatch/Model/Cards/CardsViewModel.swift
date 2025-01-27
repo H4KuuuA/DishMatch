@@ -25,18 +25,18 @@ class CardsViewModel: ObservableObject {
 //        }
     }
 
-    // `Shop` データをAPIから取得する
-    func fetchRestaurants() async {
-        do {
-            await restaurantViewModel.fetchRestaurants() // APIからデータを取得
-            self.shops = restaurantViewModel.restaurants // データを更新
-            for shop in self.shops {
-                        print("DEBUG: Image URL - \(shop.photo.pc.l)")
-                    }
-        } catch {
-            print("DEBUG: fetchRestaurants error \(error)")
-        }
-    }
+//    // `Shop` データをAPIから取得する
+//    func fetchRestaurants() async {
+//        do {
+//            await restaurantViewModel.fetchRestaurants() // APIからデータを取得
+//            self.shops = restaurantViewModel.restaurants // データを更新
+//            for shop in self.shops {
+//                        print("DEBUG: Image URL - \(shop.photo.pc.l)")
+//                    }
+//        } catch {
+//            print("DEBUG: fetchRestaurants error \(error)")
+//        }
+//    }
 
     /// 指定されたShopをshopsから削除し、removedShopsに保存する
     func removeShop(_ shop: Shop) {
