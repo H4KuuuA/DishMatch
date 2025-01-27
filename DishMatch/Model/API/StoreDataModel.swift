@@ -18,8 +18,8 @@ struct Results: Decodable {
 
 // 各レストランの情報を表す構造体
 struct Shop: Decodable,Identifiable,Equatable {
-    /// 識別子 (UUIDを生成)
-    let id = UUID()
+    /// 識別子
+    var id = String()
     // レストラン名
     let name: String
     // ジャンル情報（ジャンル名、キャッチフレーズなど）
@@ -40,6 +40,7 @@ struct Shop: Decodable,Identifiable,Equatable {
     let stationName: String
 
     enum CodingKeys: String, CodingKey {
+        case id 
         case name
         case genre
         case photo

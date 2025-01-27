@@ -17,7 +17,7 @@ class CardsViewModel: ObservableObject {
     // removedShopsに保存する最大数
     private let maxRemovedShopsCount = 5
 
-    private let restaurantViewModel = RestaurantViewModel() // RestaurantViewModelを利用
+    private let restaurantViewModel = RestaurantViewModel()
 
     init() {
 //        Task {
