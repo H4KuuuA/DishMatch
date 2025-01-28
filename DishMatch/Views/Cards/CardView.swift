@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CardView: View {
     @ObservedObject var viewModel: CardsViewModel
+    @ObservedObject var restaurantViewModel: RestaurantViewModel
 
     @State private var currentImageIndex: Int = 0
     @State private var xOffset: CGFloat = 0
@@ -89,7 +90,7 @@ private extension CardView {
             degrees = 12
         } completion: {
             viewModel.likeShop(shop) // 親から渡されたViewModelに追加
-            viewModel.removeShop(shop)
+            restaurantViewModel.removeShop(shop)
         }
     }
     /// None
@@ -98,14 +99,13 @@ private extension CardView {
             xOffset = -500
             degrees = -12
         } completion: {
-            viewModel.removeShop(shop)
+            restaurantViewModel.removeShop(shop)
         }
     }
 
     func onReceiveSwipeAction(_ action: SwipeAction?) {
         guard let action else { return }
-
-        let topShop = viewModel.shops.last
+        let topShop = restaurantViewModel.restaurants.last
 
         if topShop == shop {
             switch action {
@@ -138,8 +138,16 @@ private extension CardView {
 }
 
 #Preview {
-    let viewModel = CardsViewModel() // 一貫したインスタンスを利用
+    let viewModel = CardsViewModel()
+    let restaurantViewModel = RestaurantViewModel()
+
     viewModel.shops = [MockShop.mockShop] // モックデータを追加
-    return CardView(viewModel: viewModel, shop: MockShop.mockShop)
+    restaurantViewModel.restaurants = [MockShop.mockShop]
+
+    return CardView(
+        viewModel: viewModel,
+        restaurantViewModel: restaurantViewModel,
+        shop: MockShop.mockShop
+    )
 }
 

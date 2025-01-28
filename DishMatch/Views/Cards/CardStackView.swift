@@ -29,7 +29,9 @@ struct CardStackView: View {
                 } else {
                     ZStack {
                         ForEach(restaurantViewModel.restaurants) { shop in
-                            CardView(viewModel: viewModel, shop: shop)
+                            CardView(viewModel: viewModel,
+                                     restaurantViewModel: restaurantViewModel,
+                                     shop: shop)
                         }
                     }
                     
