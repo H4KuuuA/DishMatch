@@ -7,10 +7,12 @@
 
 import Foundation
 
-class RestaurantViewModel: ObservableObject {
+final class RestaurantViewModel: ObservableObject {
     @Published var restaurants: [Shop] = []
     @Published var isLoading = false
 
+    private var removedShops: [Shop] = []
+    private let maxRemovedShopsCount = 5
     private let apiClient = APIClient()
     private let settings = DiscoverySettings.shared // シングルトンを利用
 
@@ -39,5 +41,17 @@ class RestaurantViewModel: ObservableObject {
             }
         }
     }
+    /// 指定されたShopをrestaurantsから削除し、removedShopsに保存する
+        func removeShop(_ shop: Shop) {
+            guard let index = restaurants.firstIndex(where: { $0.id == shop.id }) else { return }
+            // Shopを削除し、removedShopsに追加
+            let removedShop = restaurants.remove(at: index)
+            removedShops.append(removedShop)
+            // removedShopsがmaxRemovedShopsCountを超えた場合、最古のShopを削除
+            if removedShops.count > maxRemovedShopsCount {
+                removedShops.removeFirst()
+            }
+            print("DEBUG: Removed shop with name: \(removedShop.name)")
+        }
 }
 

@@ -13,11 +13,6 @@ class CardsViewModel: ObservableObject {
     @Published var buttonSwipeAction: SwipeAction? // スワイプアクションを保持
     @Published var likedShops: [Shop] = []
     
-    // 一時的に削除されたShopを保存する配列
-    private var removedShops: [Shop] = []
-    // removedShopsに保存する最大数
-    private let maxRemovedShopsCount = 5
-    
     private let restaurantViewModel = RestaurantViewModel()
     
     init() {
@@ -39,18 +34,6 @@ class CardsViewModel: ObservableObject {
     //        }
     //    }
     
-    /// 指定されたShopをshopsから削除し、removedShopsに保存する
-    func removeShop(_ shop: Shop) {
-        guard let index = shops.firstIndex(where: { $0.id == shop.id }) else { return }
-        // Shopを削除し、removedShopsに追加
-        let removedShop = shops.remove(at: index)
-        removedShops.append(removedShop)
-        // removedShopsがmaxRemovedShopsCountを超えた場合、最古のShopを削除
-        if removedShops.count > maxRemovedShopsCount {
-            removedShops.removeFirst()
-        }
-        print("DEBUG: Removed shop with name: \(removedShop.name)")
-    }
     /// 指定されたShopをlikedShopsリストに追加する
     func likeShop(_ shop: Shop) {
         // 既にlikedShopsに存在する場合は追加しない
