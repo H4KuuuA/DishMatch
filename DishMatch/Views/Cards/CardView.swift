@@ -79,12 +79,12 @@ private extension CardView {
     }
 }
 private extension CardView {
-    func returnToCenter() {
+    private func returnToCenter() {
         xOffset = 0
         degrees = 0
     }
     /// Like
-    func swipeRight() {
+    private func swipeRight() {
         withAnimation {
             xOffset = 500
             degrees = 12
@@ -94,7 +94,7 @@ private extension CardView {
         }
     }
     /// None
-    func swipeLeft() {
+    private func swipeLeft() {
         withAnimation {
             xOffset = -500
             degrees = -12
@@ -103,7 +103,7 @@ private extension CardView {
         }
     }
 
-    func onReceiveSwipeAction(_ action: SwipeAction?) {
+    private func onReceiveSwipeAction(_ action: SwipeAction?) {
         guard let action else { return }
         let topShop = restaurantViewModel.restaurants.last
 
