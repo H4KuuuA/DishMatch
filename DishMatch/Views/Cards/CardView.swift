@@ -114,6 +114,10 @@ private extension CardView {
             case .like:
                 swipeRight()
             }
+            // アクション完了後にリセット
+            DispatchQueue.main.async {
+                viewModel.buttonSwipeAction = nil
+            }
         }
     }
 
