@@ -19,7 +19,7 @@ struct DiscoverySettingsView: View {
     @Binding var viewID: UUID // ビュー更新用の識別子
     // シングルトンインスタンスを @ObservedObject として利用
     @ObservedObject private var settings = DiscoverySettings.shared
-
+    
     var body: some View {
         NavigationView {
             Form {
@@ -50,7 +50,7 @@ struct DiscoverySettingsView: View {
                     Slider(value: $settings.budget, in: 500...20000, step: 100)
                         .tint(.orange)
                 }
-
+                
                 // その他の設定
                 Section {
                     Toggle("飲み放題", isOn: $settings.isAllYouCanDrink)
@@ -89,11 +89,18 @@ struct DiscoverySettingsView: View {
                             .foregroundColor(.blue)
                     }
                 }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("キャンセル")
+                            .foregroundColor(.blue)
+                    }
+                }
             }
         }
     }
 }
-
-#Preview {
-    DiscoverySettingsView(viewID: .constant(UUID()))
-}
+    #Preview {
+        DiscoverySettingsView(viewID: .constant(UUID()))
+    }
