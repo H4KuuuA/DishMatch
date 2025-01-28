@@ -9,70 +9,89 @@ import SwiftUI
 
 struct LikeShopsListView: View {
     @ObservedObject var viewModel: CardsViewModel
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
-                LazyVStack (spacing: 16) {
-                    ForEach(viewModel.likedShops) { shop in
-                        Button(action: {
-                            print("DEBUG: \(shop.name) tapped")
-                            
-                        }) {
-                            HStack(alignment: .top, spacing: 16) {
-                                AsyncImage(url: URL(string: shop.photo.pc.l)) { image in
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 80, height: 80)
-                                        .cornerRadius(8)
-                                        .clipped()
-                                } placeholder: {
-                                    Color.gray
-                                        .frame(width: 80, height: 80)
-                                        .cornerRadius(8)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(shop.name)
-                                        .font(.headline)
-                                    HStack {
-                                        Image(systemName: "fork.knife")
-                                        Text("\(shop.genre.name)")
-                                        
-                                        Text("|")
-                                        Image(systemName: "mappin.and.ellipse")
-                                        Text("\(shop.stationName)")
+                if viewModel.likedShops.isEmpty {
+                    Text("お気に入りがまだありません")
+                        .foregroundColor(.gray)
+                        .font(.headline)
+                        .padding()
+                } else {
+                    LazyVStack(spacing: 16) {
+                        ForEach(viewModel.likedShops, id: \.id) { shop in
+                            Button(action: {
+                                print("DEBUG: \(shop.name) tapped")
+                            }) {
+                                HStack(alignment: .top, spacing: 16) {
+                                    // 非同期画像読み込み
+                                    AsyncImage(url: URL(string: shop.photo.pc.l)) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView()
+                                                .frame(width: 80, height: 80)
+                                                .background(Color.gray.opacity(0.3))
+                                                .cornerRadius(8)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 80, height: 80)
+                                                .cornerRadius(8)
+                                                .clipped()
+                                        case .failure:
+                                            Image(systemName: "photo")
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 80, height: 80)
+                                                .background(Color.gray.opacity(0.3))
+                                                .cornerRadius(8)
+                                        @unknown default:
+                                            EmptyView()
+                                        }
                                     }
-                                    .foregroundStyle(Color("FC").opacity(0.8))
-                                    .font(.caption)
-                                    .lineLimit(2)
+
+                                    // 店舗情報
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(shop.name)
+                                            .font(.headline)
+                                            .lineLimit(1)
+
+                                        HStack {
+                                            Image(systemName: "fork.knife")
+                                            Text("\(shop.genre.name)")
+                                            Text("|")
+                                            Image(systemName: "mappin.and.ellipse")
+                                            Text("\(shop.stationName)")
+                                        }
+                                        .font(.caption)
+                                        .foregroundStyle(Color("FC").opacity(0.8))
+                                        .lineLimit(1)
+                                    }
                                     Spacer()
                                 }
-                                Spacer()
                             }
-                            
+                            .buttonStyle(PlainButtonStyle())
+                            .contentShape(Rectangle())
+                            .background(Color("WB"))
+                            .cornerRadius(8)
+                            Divider()
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .contentShape(
-                            Rectangle())
-                        .background(Color("WC"))
-                        
-                        Divider()
                     }
+                    .padding()
                 }
-                .padding()
             }
-            .background(Color("WC"))
+            .background(Color("WB"))
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
-        
-        #Preview {
-            // モックデータ付きの CardsViewModel を使用してプレビュー
-            let viewModel = CardsViewModel()
-            viewModel.likeShop(MockShop.mockShop)
-            viewModel.likeShop(MockShop.mockShop)
-            
-            return LikeShopsListView(viewModel: viewModel)
-        }
+
+#Preview {
+    let viewModel = CardsViewModel()
+    viewModel.likeShop(MockShop.mockShop)
+    viewModel.likeShop(MockShop.mockShop)
+
+    return LikeShopsListView(viewModel: viewModel)
+}
