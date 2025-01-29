@@ -10,7 +10,9 @@ import Foundation
 final class RestaurantViewModel: ObservableObject {
     @Published var restaurants: [Shop] = []
     @Published var isLoading = false
-
+    @Published var buttonSwipeAction: SwipeAction? // スワイプアクションを保持
+    @Published var likedShops: [Shop] = []
+    
     private var removedShops: [Shop] = []
     private let maxRemovedShopsCount = 5
     private let apiClient = APIClient()
@@ -53,5 +55,22 @@ final class RestaurantViewModel: ObservableObject {
             }
             print("DEBUG: Removed shop with name: \(removedShop.name)")
         }
+    /// 指定されたShopをlikedShopsリストに追加する
+    func likeShop(_ shop: Shop) {
+        // 既にlikedShopsに存在する場合は追加しない
+        guard !likedShops.contains(where: { $0.id == shop.id }) else {
+            return
+        }
+        likedShops.append(shop)
+        
+        print("DEBUG🍎: Current likedShops:")
+        for shop in likedShops {
+            print(" - Name: \(shop.name), Address: \(shop.address), URL: \(shop.urls.pc)")
+        }
+    }
+    /// LikeShopsListView用に、お気に入りのショップリストを提供
+    func getLikedShops() -> [Shop] {
+        return likedShops
+    }
 }
 

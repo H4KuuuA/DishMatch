@@ -8,19 +8,19 @@
 import SwiftUI
 
 struct LikeShopsListView: View {
-    @ObservedObject var viewModel: CardsViewModel
+    @ObservedObject var restaurantViewModel: RestaurantViewModel
 
     var body: some View {
         NavigationView {
             ScrollView {
-                if viewModel.likedShops.isEmpty {
+                if restaurantViewModel.likedShops.isEmpty {
                     Text("お気に入りがまだありません")
                         .foregroundColor(.gray)
                         .font(.headline)
                         .padding()
                 } else {
                     LazyVStack(spacing: 16) {
-                        ForEach(viewModel.likedShops, id: \.id) { shop in
+                        ForEach(restaurantViewModel.likedShops, id: \.id) { shop in
                             Button(action: {
                                 print("DEBUG: \(shop.name) tapped")
                             }) {
@@ -89,9 +89,11 @@ struct LikeShopsListView: View {
 }
 
 #Preview {
-    let viewModel = CardsViewModel()
-    viewModel.likeShop(MockShop.mockShop)
-    viewModel.likeShop(MockShop.mockShop)
+    let restaurantViewModel = RestaurantViewModel()
+    restaurantViewModel.likedShops = [
+        MockShop.mockShop,
+        MockShop.mockShop
+    ]
 
-    return LikeShopsListView(viewModel: viewModel)
+    return LikeShopsListView(restaurantViewModel: restaurantViewModel)
 }

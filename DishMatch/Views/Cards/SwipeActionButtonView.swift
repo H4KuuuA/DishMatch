@@ -8,12 +8,12 @@
 import SwiftUI
 
 struct SwipeActionButtonView: View {
-    @ObservedObject var viewModel: CardsViewModel
+    @ObservedObject var restaurantViewModel: RestaurantViewModel
     
     var body: some View {
         HStack (spacing: 32) {
             Button {
-                viewModel.buttonSwipeAction = .rejetct
+                restaurantViewModel.buttonSwipeAction = .rejetct
                 
             } label: {
                 Image(systemName: "xmark")
@@ -29,7 +29,7 @@ struct SwipeActionButtonView: View {
             }
             .frame(width: 48, height: 48)
             Button {
-                viewModel.buttonSwipeAction = .like
+                restaurantViewModel.buttonSwipeAction = .like
             } label: {
                 Image(systemName: "heart.fill")
                     .fontWeight(.heavy)
@@ -47,8 +47,8 @@ struct SwipeActionButtonView: View {
 }
 
 #Preview {
-    let mockViewModel = CardsViewModel()
-    mockViewModel.buttonSwipeAction = .like // プレビュー用の状態設定
-    return SwipeActionButtonView(viewModel: mockViewModel)
+    let restaurantViewModel = RestaurantViewModel()
+    restaurantViewModel.buttonSwipeAction = .like // プレビュー用の初期状態
+    return SwipeActionButtonView(restaurantViewModel: restaurantViewModel)
 }
 

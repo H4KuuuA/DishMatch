@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct CardView: View {
-    @ObservedObject var viewModel: CardsViewModel
     @ObservedObject var restaurantViewModel: RestaurantViewModel
 
     @State private var currentImageIndex: Int = 0
@@ -57,7 +56,7 @@ struct CardView: View {
         .fullScreenCover(isPresented: $isShowProfileModal) {
             StoreProfileView(shop: shop)
         }
-        .onReceive(viewModel.$buttonSwipeAction, perform: { action in
+        .onReceive(restaurantViewModel.$buttonSwipeAction, perform: { action in
             onReceiveSwipeAction(action)
         })
         .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
@@ -89,7 +88,7 @@ private extension CardView {
             xOffset = 500
             degrees = 12
         } completion: {
-            viewModel.likeShop(shop) // 親から渡されたViewModelに追加
+            restaurantViewModel.likeShop(shop) // 親から渡されたViewModelに追加
             restaurantViewModel.removeShop(shop)
         }
     }
@@ -116,7 +115,7 @@ private extension CardView {
             }
             // アクション完了後にリセット
             DispatchQueue.main.async {
-                viewModel.buttonSwipeAction = nil
+                restaurantViewModel.buttonSwipeAction = nil
             }
         }
     }
@@ -142,14 +141,10 @@ private extension CardView {
 }
 
 #Preview {
-    let viewModel = CardsViewModel()
     let restaurantViewModel = RestaurantViewModel()
-
-    viewModel.shops = [MockShop.mockShop] // モックデータを追加
     restaurantViewModel.restaurants = [MockShop.mockShop]
 
     return CardView(
-        viewModel: viewModel,
         restaurantViewModel: restaurantViewModel,
         shop: MockShop.mockShop
     )
