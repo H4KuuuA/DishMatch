@@ -88,7 +88,7 @@ final class RestaurantViewModel: ObservableObject {
                 let result = try await apiClient.fetchRestaurantData(keyword: nil, range: range, genre: nil, startIndex: nextStartIndex)
                 
                 DispatchQueue.main.async {
-                    self.shopList.append(contentsOf: result.results.shop)
+                    self.shopList.insert(contentsOf: result.results.shop, at: 0)
                     self.currentPage += 1
                     self.isFetchingNextPage = false
                 }
