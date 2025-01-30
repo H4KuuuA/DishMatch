@@ -56,7 +56,7 @@ struct CardView: View {
         .fullScreenCover(isPresented: $isShowProfileModal) {
             StoreProfileView(shop: shop)
         }
-        .onReceive(restaurantViewModel.$buttonSwipeAction, perform: { action in
+        .onReceive(restaurantViewModel.$selectedSwipeAction, perform: { action in
             onReceiveSwipeAction(action)
         })
         .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
@@ -88,8 +88,8 @@ private extension CardView {
             xOffset = 500
             degrees = 12
         } completion: {
-            restaurantViewModel.likeShop(shop) // 親から渡されたViewModelに追加
-            restaurantViewModel.removeShop(shop)
+            restaurantViewModel.addToFavorites(shop) // 親から渡されたViewModelに追加
+            restaurantViewModel.dismissShop(shop)
         }
     }
     /// None
@@ -98,13 +98,13 @@ private extension CardView {
             xOffset = -500
             degrees = -12
         } completion: {
-            restaurantViewModel.removeShop(shop)
+            restaurantViewModel.dismissShop(shop)
         }
     }
 
     private func onReceiveSwipeAction(_ action: SwipeAction?) {
         guard let action else { return }
-        let topShop = restaurantViewModel.restaurants.last
+        let topShop = restaurantViewModel.shopList.last
 
         if topShop == shop {
             switch action {
@@ -115,7 +115,7 @@ private extension CardView {
             }
             // アクション完了後にリセット
             DispatchQueue.main.async {
-                restaurantViewModel.buttonSwipeAction = nil
+                restaurantViewModel.selectedSwipeAction = nil
             }
         }
     }
@@ -142,7 +142,7 @@ private extension CardView {
 
 #Preview {
     let restaurantViewModel = RestaurantViewModel()
-    restaurantViewModel.restaurants = [MockShop.mockShop]
+    restaurantViewModel.shopList = [MockShop.mockShop]
 
     return CardView(
         restaurantViewModel: restaurantViewModel,

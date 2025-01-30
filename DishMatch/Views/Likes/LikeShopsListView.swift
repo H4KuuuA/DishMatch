@@ -13,14 +13,14 @@ struct LikeShopsListView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                if restaurantViewModel.likedShops.isEmpty {
+                if restaurantViewModel.favoriteShops.isEmpty {
                     Text("お気に入りがまだありません")
                         .foregroundColor(.gray)
                         .font(.headline)
                         .padding()
                 } else {
                     LazyVStack(spacing: 16) {
-                        ForEach(restaurantViewModel.likedShops, id: \.id) { shop in
+                        ForEach(restaurantViewModel.favoriteShops, id: \.id) { shop in
                             Button(action: {
                                 print("DEBUG: \(shop.name) tapped")
                             }) {
@@ -90,7 +90,7 @@ struct LikeShopsListView: View {
 
 #Preview {
     let restaurantViewModel = RestaurantViewModel()
-    restaurantViewModel.likedShops = [
+    restaurantViewModel.favoriteShops = [
         MockShop.mockShop,
         MockShop.mockShop
     ]

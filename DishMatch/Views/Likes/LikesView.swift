@@ -21,7 +21,7 @@ struct LikesView: View {
 
 #Preview {
     let restaurantViewModel = RestaurantViewModel()
-    restaurantViewModel.likedShops = [
+    restaurantViewModel.favoriteShops = [
         MockShop.mockShop,
         MockShop.mockShop
     ]

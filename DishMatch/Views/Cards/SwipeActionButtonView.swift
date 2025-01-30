@@ -13,7 +13,7 @@ struct SwipeActionButtonView: View {
     var body: some View {
         HStack (spacing: 32) {
             Button {
-                restaurantViewModel.buttonSwipeAction = .rejetct
+                restaurantViewModel.selectedSwipeAction = .rejetct
                 
             } label: {
                 Image(systemName: "xmark")
@@ -29,7 +29,7 @@ struct SwipeActionButtonView: View {
             }
             .frame(width: 48, height: 48)
             Button {
-                restaurantViewModel.buttonSwipeAction = .like
+                restaurantViewModel.selectedSwipeAction = .like
             } label: {
                 Image(systemName: "heart.fill")
                     .fontWeight(.heavy)
@@ -48,7 +48,7 @@ struct SwipeActionButtonView: View {
 
 #Preview {
     let restaurantViewModel = RestaurantViewModel()
-    restaurantViewModel.buttonSwipeAction = .like // プレビュー用の初期状態
+    restaurantViewModel.selectedSwipeAction = .like // プレビュー用の初期状態
     return SwipeActionButtonView(restaurantViewModel: restaurantViewModel)
 }
 
