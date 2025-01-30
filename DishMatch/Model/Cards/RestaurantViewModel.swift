@@ -66,7 +66,10 @@ final class RestaurantViewModel: ObservableObject {
         guard !favoriteShops.contains(where: { $0.id == shop.id }) else {
             return
         }
-        favoriteShops.append(shop)
+        DispatchQueue.main.async { // UIスレッドで更新
+                self.favoriteShops.append(shop)
+                print("DEBUG✅: Favorite shop added - \(shop.name)")
+            }
         
         print("DEBUG🍎: Current favoriteShops:")
         for shop in favoriteShops {

@@ -9,7 +9,8 @@ import SwiftUI
 
 struct LikeShopsListView: View {
     @ObservedObject var restaurantViewModel: RestaurantViewModel
-
+    @State private var isVisible = false
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -33,6 +34,13 @@ struct LikeShopsListView: View {
                                                 .frame(width: 80, height: 80)
                                                 .background(Color.gray.opacity(0.3))
                                                 .cornerRadius(8)
+                                                .onAppear {
+                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                                                        withAnimation {
+                                                            isVisible = true
+                                                        }
+                                                    }
+                                                }
                                         case .success(let image):
                                             image
                                                 .resizable()
@@ -40,6 +48,8 @@ struct LikeShopsListView: View {
                                                 .frame(width: 80, height: 80)
                                                 .cornerRadius(8)
                                                 .clipped()
+                                                .opacity(isVisible ? 1 : 0) // フェードイン効果
+                                                .animation(.easeIn(duration: 0.5), value: isVisible)
                                         case .failure:
                                             Image(systemName: "photo")
                                                 .resizable()
