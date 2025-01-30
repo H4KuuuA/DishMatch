@@ -10,6 +10,7 @@ import SwiftUI
 struct LikeShopsListView: View {
     @ObservedObject var restaurantViewModel: RestaurantViewModel
     @State private var isVisible = false
+    @State private var refreshTrigger = false
     
     var body: some View {
         NavigationView {
@@ -61,13 +62,13 @@ struct LikeShopsListView: View {
                                             EmptyView()
                                         }
                                     }
-
+                                    
                                     // 店舗情報
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text(shop.name)
                                             .font(.headline)
                                             .lineLimit(1)
-
+                                        
                                         HStack {
                                             Image(systemName: "fork.knife")
                                             Text("\(shop.genre.name)")
@@ -94,7 +95,15 @@ struct LikeShopsListView: View {
             }
             .background(Color("WB"))
             .navigationBarTitleDisplayMode(.inline)
+            .refreshable {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { // 0.3秒遅延
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        refreshTrigger.toggle()
+                    }
+                }
+            }
         }
+        .id(refreshTrigger)
     }
 }
 
@@ -104,6 +113,6 @@ struct LikeShopsListView: View {
         MockShop.mockShop,
         MockShop.mockShop
     ]
-
+    
     return LikeShopsListView(restaurantViewModel: restaurantViewModel)
 }

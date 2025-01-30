@@ -7,13 +7,27 @@
 
 import Foundation
 
-struct StoreDataModel: Decodable {
+struct RestaurantDataModel: Decodable {
     let results: Results
 }
 
 // 結果データ(レストラン情報を含む「shop」配列を持つ)を格納する構造体
 struct Results: Decodable {
+    // 取得可能な合計店舗数
+    let resultsAvailable: Int
+    // 取得された件数（文字列として取得される）
+    let resultsReturned: String
+    // 取得開始位置
+    let resultsStart: Int
+    // レストランのリスト
     let shop: [Shop]
+
+    enum CodingKeys: String, CodingKey {
+        case resultsAvailable = "results_available"
+        case resultsReturned = "results_returned"
+        case resultsStart = "results_start"
+        case shop
+    }
 }
 
 // 各レストランの情報を表す構造体
@@ -40,7 +54,7 @@ struct Shop: Decodable,Identifiable,Equatable {
     let stationName: String
 
     enum CodingKeys: String, CodingKey {
-        case id 
+        case id
         case name
         case genre
         case photo

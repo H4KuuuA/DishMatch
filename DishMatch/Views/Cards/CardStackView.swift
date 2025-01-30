@@ -25,12 +25,21 @@ struct CardStackView: View {
                         .foregroundColor(.gray)
                         .font(.title3)
                         .padding()
+                    ResetCardButtonView(viewID: $viewID)
                 } else {
                     ZStack {
-                        ForEach(restaurantViewModel.shopList) { shop in
-                            CardView(restaurantViewModel: restaurantViewModel,
-                                     shop: shop)
+                        ForEach(Array(restaurantViewModel.shopList.enumerated()), id: \.element.id) { index, shop in
+                            CardView(restaurantViewModel: restaurantViewModel, shop: shop)
+                                
+                                .onChange(of: restaurantViewModel.shopList) { newList in
+                                    // ✅ 残り5枚以下になったら次のページを取得
+                                    if newList.count <= 5 && !restaurantViewModel.isLoading {
+                                        restaurantViewModel.fetchNextPage()
+                                    }
+                                }
+
                         }
+
                     }
                     
                     HStack(spacing: 32) {
@@ -57,18 +66,18 @@ struct CardStackView: View {
             }
             .id(viewID) // `viewID` を利用してビューをリロード
             .onChange(of: viewID) { _ in
-                restaurantViewModel.fetchShops() // データ取得をトリガー
+                restaurantViewModel.fetchShops(startIndex: 1) // データ取得をトリガー
             }
             .onAppear {
                 if isFirstAppearance {
                     isFirstAppearance = false
-                    restaurantViewModel.fetchShops() // 初回データ取得
+                    restaurantViewModel.fetchShops(startIndex: 1) // 初回データ取得
                 }
-//                // データ同期を非同期処理の完了後に実行
-//                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // デバッグ用の遅延
-//                    viewModel.shops = restaurantViewModel.restaurants
-//                    print("DEBUG⭐️: Synced restaurants to viewModel.shops: \(viewModel.shops.map { $0.name })")
-//                }
+                //                // データ同期を非同期処理の完了後に実行
+                //                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // デバッグ用の遅延
+                //                    viewModel.shops = restaurantViewModel.restaurants
+                //                    print("DEBUG⭐️: Synced restaurants to viewModel.shops: \(viewModel.shops.map { $0.name })")
+                //                }
             }
         }
     }

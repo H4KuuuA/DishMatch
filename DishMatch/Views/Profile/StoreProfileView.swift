@@ -29,21 +29,21 @@ struct StoreProfileView: View {
                             case .empty:
                                 // ローディング中のプレースホルダー
                                 ProgressView()
-                                    .frame(maxWidth: .infinity, maxHeight: 300)
+                                    .frame(maxWidth: .infinity, maxHeight: 500)
                                     .background(Color.gray.opacity(0.3))
                             case .success(let image):
                                 // 正常に画像が取得できた場合
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
-                                    .frame(maxWidth: .infinity, maxHeight: 300)
+                                    .frame(maxWidth: .infinity, maxHeight: 500)
                                     .clipped()
                             case .failure:
                                 // エラー時の代替画像
                                 Image(systemName: "photo")
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
-                                    .frame(maxWidth: .infinity, maxHeight: 300)
+                                    .frame(maxWidth: .infinity, maxHeight: 500)
                                     .background(Color.gray.opacity(0.3))
                                     .clipped()
                             @unknown default:
@@ -111,7 +111,7 @@ struct StoreProfileView: View {
                         .padding()
                         .background(Color("WB"))
                         .cornerRadius(40)
-                        .offset(y: -40)
+                        .offset(y: -35)
 
                         
                     }
