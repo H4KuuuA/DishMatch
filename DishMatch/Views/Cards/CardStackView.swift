@@ -25,6 +25,7 @@ struct CardStackView: View {
                         .foregroundColor(.gray)
                         .font(.title3)
                         .padding()
+                    ResetCardButtonView(viewID: $viewID)
                 } else {
                     ZStack {
                         ForEach(Array(restaurantViewModel.shopList.enumerated()), id: \.element.id) { index, shop in
