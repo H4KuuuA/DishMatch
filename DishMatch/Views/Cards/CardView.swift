@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct CardView: View {
-    @ObservedObject var viewModel: CardsViewModel
     @ObservedObject var restaurantViewModel: RestaurantViewModel
 
     @State private var currentImageIndex: Int = 0
@@ -57,7 +56,7 @@ struct CardView: View {
         .fullScreenCover(isPresented: $isShowProfileModal) {
             StoreProfileView(shop: shop)
         }
-        .onReceive(viewModel.$buttonSwipeAction, perform: { action in
+        .onReceive(restaurantViewModel.$selectedSwipeAction, perform: { action in
             onReceiveSwipeAction(action)
         })
         .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
@@ -79,33 +78,33 @@ private extension CardView {
     }
 }
 private extension CardView {
-    func returnToCenter() {
+    private func returnToCenter() {
         xOffset = 0
         degrees = 0
     }
     /// Like
-    func swipeRight() {
+    private func swipeRight() {
         withAnimation {
             xOffset = 500
             degrees = 12
         } completion: {
-            viewModel.likeShop(shop) // 親から渡されたViewModelに追加
-            restaurantViewModel.removeShop(shop)
+            restaurantViewModel.addToFavorites(shop) // 親から渡されたViewModelに追加
+            restaurantViewModel.dismissShop(shop)
         }
     }
     /// None
-    func swipeLeft() {
+    private func swipeLeft() {
         withAnimation {
             xOffset = -500
             degrees = -12
         } completion: {
-            restaurantViewModel.removeShop(shop)
+            restaurantViewModel.dismissShop(shop)
         }
     }
 
-    func onReceiveSwipeAction(_ action: SwipeAction?) {
+    private func onReceiveSwipeAction(_ action: SwipeAction?) {
         guard let action else { return }
-        let topShop = restaurantViewModel.restaurants.last
+        let topShop = restaurantViewModel.shopList.last
 
         if topShop == shop {
             switch action {
@@ -113,6 +112,10 @@ private extension CardView {
                 swipeLeft()
             case .like:
                 swipeRight()
+            }
+            // アクション完了後にリセット
+            DispatchQueue.main.async {
+                restaurantViewModel.selectedSwipeAction = nil
             }
         }
     }
@@ -138,14 +141,10 @@ private extension CardView {
 }
 
 #Preview {
-    let viewModel = CardsViewModel()
     let restaurantViewModel = RestaurantViewModel()
-
-    viewModel.shops = [MockShop.mockShop] // モックデータを追加
-    restaurantViewModel.restaurants = [MockShop.mockShop]
+    restaurantViewModel.shopList = [MockShop.mockShop]
 
     return CardView(
-        viewModel: viewModel,
         restaurantViewModel: restaurantViewModel,
         shop: MockShop.mockShop
     )

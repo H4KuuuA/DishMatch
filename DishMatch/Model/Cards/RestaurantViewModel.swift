@@ -8,15 +8,22 @@
 import Foundation
 
 final class RestaurantViewModel: ObservableObject {
-    @Published var restaurants: [Shop] = []
+    @Published var shopList: [Shop] = []
     @Published var isLoading = false
+    @Published var selectedSwipeAction: SwipeAction?
+    @Published var favoriteShops: [Shop] = []
 
-    private var removedShops: [Shop] = []
-    private let maxRemovedShopsCount = 5
+    private var dismissedShops: [Shop] = []
+    private let maxDismissedShops = 5
     private let apiClient = APIClient()
-    private let settings = DiscoverySettings.shared // シングルトンを利用
+    // シングルトンを利用
+    private let settings = DiscoverySettings.shared
 
-    func fetchRestaurants(keyword: String? = nil, genre: String? = nil) {
+    /// キーワードやジャンルに基づいて店舗データをAPIから取得する
+    /// - Parameters:
+    ///   - keyword: 検索するキーワード（省略可能）
+    ///   - genre: ジャンルのID（省略可能）
+    func fetchShops(keyword: String? = nil, genre: String? = nil) {
         isLoading = true
         Task {
             do {
@@ -30,8 +37,8 @@ final class RestaurantViewModel: ObservableObject {
                 // APIからデータを取得
                 let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre)
                 DispatchQueue.main.async {
-                    self.restaurants = result.results.shop // データを更新
-                    self.isLoading = false                // ローディング終了
+                    self.shopList = result.results.shop
+                    self.isLoading = false
                 }
             } catch {
                 print("エラー: \(error.localizedDescription)")
@@ -41,17 +48,39 @@ final class RestaurantViewModel: ObservableObject {
             }
         }
     }
-    /// 指定されたShopをrestaurantsから削除し、removedShopsに保存する
-        func removeShop(_ shop: Shop) {
-            guard let index = restaurants.firstIndex(where: { $0.id == shop.id }) else { return }
-            // Shopを削除し、removedShopsに追加
-            let removedShop = restaurants.remove(at: index)
-            removedShops.append(removedShop)
-            // removedShopsがmaxRemovedShopsCountを超えた場合、最古のShopを削除
-            if removedShops.count > maxRemovedShopsCount {
-                removedShops.removeFirst()
-            }
-            print("DEBUG: Removed shop with name: \(removedShop.name)")
+
+    /// 指定されたShopをshopListから削除し、dismissedShopsに保存する
+    func dismissShop(_ shop: Shop) { // `removeShop` → `dismissShop`
+        guard let index = shopList.firstIndex(where: { $0.id == shop.id }) else { return }
+        let removedShop = shopList.remove(at: index)
+        dismissedShops.append(removedShop)
+
+        if dismissedShops.count > maxDismissedShops {
+            dismissedShops.removeFirst()
         }
+        print("DEBUG: Dismissed shop with name: \(removedShop.name)")
+    }
+
+    /// 指定されたShopをfavoriteShopsリストに追加する
+    func addToFavorites(_ shop: Shop) {
+        guard !favoriteShops.contains(where: { $0.id == shop.id }) else {
+            return
+        }
+        DispatchQueue.main.async { // UIスレッドで更新
+                self.favoriteShops.append(shop)
+                print("DEBUG✅: Favorite shop added - \(shop.name)")
+            }
+        
+        print("DEBUG🍎: Current favoriteShops:")
+        for shop in favoriteShops {
+            print(" - Name: \(shop.name), Address: \(shop.address), URL: \(shop.urls.pc)")
+        }
+    }
+
+    /// お気に入りのShopリストを取得する
+    func fetchFavoriteShops() -> [Shop] {
+        return favoriteShops
+    }
 }
+
 

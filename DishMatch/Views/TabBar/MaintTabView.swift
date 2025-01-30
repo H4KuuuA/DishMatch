@@ -8,17 +8,17 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject var cardsViewModel = CardsViewModel() // 一元管理するCardsViewModel
+    @StateObject private var restaurantViewModel = RestaurantViewModel()
 
     var body: some View {
         TabView {
-            CardStackView(viewModel: cardsViewModel)
+            CardStackView(restaurantViewModel: restaurantViewModel)
                 .tabItem {
                     Image(systemName: "fork.knife")
                 }
                 .tag(0)
 
-            LikesView(viewModel: cardsViewModel)
+            LikesView(restaurantViewModel: restaurantViewModel)
                 .tabItem {
                     Image(systemName: "heart.fill")
                 }
