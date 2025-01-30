@@ -29,15 +29,7 @@ struct CardStackView: View {
                     ZStack {
                         ForEach(Array(restaurantViewModel.shopList.enumerated()), id: \.element.id) { index, shop in
                             CardView(restaurantViewModel: restaurantViewModel, shop: shop)
-                                .onAppear {
-                                    if isFirstAppearance {
-                                        isFirstAppearance = false
-                                        
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { // ✅ 5秒遅延
-                                            restaurantViewModel.fetchShops(startIndex: 1) // 初回データ取得（5秒後）
-                                        }
-                                    }
-                                }
+                                
                                 .onChange(of: restaurantViewModel.shopList) { newList in
                                     // ✅ 残り5枚以下になったら次のページを取得
                                     if newList.count <= 5 && !restaurantViewModel.isLoading {
