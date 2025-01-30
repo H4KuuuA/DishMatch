@@ -11,7 +11,7 @@ import Foundation
 final class APIClient {
     private let pageSize = 20
     
-    func fetchRestaurantData(keyword: String?, range: String, genre: String?, startIndex: Int) async throws -> StoreDataModel {
+    func fetchRestaurantData(keyword: String?, range: String, genre: String?, startIndex: Int) async throws -> RestaurantDataModel {
         guard let url = createAPIRequestURL(keyword: keyword, range: range, genre: genre, startIndex: startIndex) else {
             throw APIError.failCreateURL
         }
@@ -64,8 +64,8 @@ final class APIClient {
         return urlComponents?.url
     }
     
-    private func decodeAPIResponse(responseData: Data) throws -> StoreDataModel {
+    private func decodeAPIResponse(responseData: Data) throws -> RestaurantDataModel {
         let decoder = JSONDecoder()
-        return try decoder.decode(StoreDataModel.self, from: responseData)
+        return try decoder.decode(RestaurantDataModel.self, from: responseData)
     }
 }
