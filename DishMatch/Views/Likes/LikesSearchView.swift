@@ -29,9 +29,10 @@ struct LikesSearchView: View {
                         }
                         TextField("", text: $searchText, onCommit: {
                             performSearch()
+                                
                         })
                         .font(.callout)
-                        .foregroundStyle(Color.black)
+                        .foregroundStyle(Color("FC"))
                         .padding(.vertical, 10)
                     }
                     
@@ -82,7 +83,7 @@ struct LikesSearchView: View {
                 if !searchHistory.isEmpty {
                     Section(header: HStack {
                         Text("履歴").font(.headline).bold()
-                            .foregroundStyle(Color.black)
+                            .foregroundStyle(Color("FC"))
                         Spacer()
                         Button("すべて削除") {
                             searchHistory.removeAll()
@@ -100,7 +101,7 @@ struct LikesSearchView: View {
                         }
                         .onDelete(perform: removeHistory)
                     }
-                    .listRowBackground(Color.white)
+                    .listRowBackground(Color("WB"))
                     .padding(.vertical, 4)
                 }
             }
