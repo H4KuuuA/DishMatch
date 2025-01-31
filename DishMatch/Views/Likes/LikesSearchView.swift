@@ -11,6 +11,7 @@ struct LikesSearchView: View {
     @Binding var isPresented: Bool
     @State private var searchText: String = ""
     @State private var searchHistory : [String] = []
+    @FocusState private var isTextFieldFocused: Bool
     @State private var keyboardOffset: CGFloat = 0
     var body: some View {
         VStack(spacing: 0) {
@@ -29,8 +30,9 @@ struct LikesSearchView: View {
                         }
                         TextField("", text: $searchText, onCommit: {
                             performSearch()
-                                
+                            isPresented = false
                         })
+                        .focused($isTextFieldFocused)
                         .font(.callout)
                         .foregroundStyle(Color("FC"))
                         .padding(.vertical, 10)
@@ -53,6 +55,7 @@ struct LikesSearchView: View {
                 
                 Button("キャンセル") {
                     isPresented = false
+                    isTextFieldFocused = false
                 }
                 .font(.callout)
                 .fontWeight(.bold)
@@ -111,6 +114,9 @@ struct LikesSearchView: View {
             .padding(.bottom, keyboardOffset)
         }
         .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isTextFieldFocused = true
+            }
             NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { notification in
                 if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
                     withAnimation {

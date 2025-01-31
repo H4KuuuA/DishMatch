@@ -8,12 +8,13 @@
 import SwiftUI
 
 struct TextFieldLikeView: View {
+    @Binding var isSearchPresented: Bool
+    
     var body: some View {
         VStack {
             // TextFieldっぽいボタン
             Button(action: {
-                // ボタンが押されたときの処理
-                // showNextView.toggle()
+                isSearchPresented = true
             }) {
                 HStack {
                     Image(systemName: "magnifyingglass")
@@ -34,5 +35,5 @@ struct TextFieldLikeView: View {
 }
 
 #Preview {
-    TextFieldLikeView()
+    TextFieldLikeView(isSearchPresented: .constant(true))
 }
