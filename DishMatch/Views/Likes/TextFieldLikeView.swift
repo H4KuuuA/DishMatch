@@ -9,6 +9,7 @@ import SwiftUI
 
 struct TextFieldLikeView: View {
     @Binding var isSearchPresented: Bool
+    @Binding var searchText: String
     
     var body: some View {
         VStack {
@@ -19,15 +20,22 @@ struct TextFieldLikeView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
+                        .padding(.leading, 10)
                     
-                    Text("お店を検索")
-                        .foregroundColor(.gray)
-                        .padding(.leading, 5)
+                    if searchText.isEmpty {
+                        Text("お店を検索")
+                            .foregroundColor(.gray)
+                            .padding(.leading, 5)
+                    } else {
+                        Text(searchText) // ✅ 検索ワードを表示
+                            .foregroundColor(.black)
+                            .padding(.leading, 5)
+                    }
                     
                     Spacer()
                 }
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.gray, lineWidth: 1))
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray5)))
                 .padding(.horizontal)
             }
         }
@@ -35,5 +43,5 @@ struct TextFieldLikeView: View {
 }
 
 #Preview {
-    TextFieldLikeView(isSearchPresented: .constant(true))
+    TextFieldLikeView(isSearchPresented: .constant(true), searchText: .constant("ラーメン"))
 }

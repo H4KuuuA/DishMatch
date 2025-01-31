@@ -9,7 +9,7 @@ import SwiftUI
 
 struct LikesSearchView: View {
     @Binding var isPresented: Bool
-    @State private var searchText: String = ""
+    @Binding var searchText: String
     @State private var searchHistory : [String] = []
     @FocusState private var isTextFieldFocused: Bool
     @State private var keyboardOffset: CGFloat = 0
@@ -148,5 +148,5 @@ struct LikesSearchView: View {
 }
 
 #Preview {
-    LikesSearchView(isPresented: .constant(true))
+    LikesSearchView(isPresented: .constant(true), searchText: .constant(""))
 }
