@@ -24,7 +24,7 @@ struct LikesSearchView: View {
                     ZStack(alignment: .leading) {
                         if searchText.isEmpty {
                             Text("エリア ジャンル 店名 など")
-                                .foregroundColor(Color.black.opacity(0.5)) // ✅ プレースホルダーの色を変更
+                                .foregroundColor(Color("FC").opacity(0.5)) // ✅ プレースホルダーの色を変更
                                 .padding(.leading, 5)
                         }
                         TextField("", text: $searchText, onCommit: {
@@ -59,7 +59,7 @@ struct LikesSearchView: View {
                 .padding(.horizontal)
             }
             .padding(.top, 10)
-            .background(Color("BG"))
+            .background(Color("WB"))
             
             // 検索オプション
             List {
@@ -75,7 +75,7 @@ struct LikesSearchView: View {
                         Label("ジャンルから探す", systemImage: "fork.knife")
                     }
                 }
-                .listRowBackground(Color.white)
+                .listRowBackground(Color("WB"))
                 .padding(.vertical, 4)
                 
                 // 履歴セクション
@@ -105,7 +105,7 @@ struct LikesSearchView: View {
                 }
             }
             .listStyle(PlainListStyle()) // セル間の余白を減らす
-            .background(Color("BG"))
+            .background(Color("WB"))
             .tint(.orange)
             .padding(.bottom, keyboardOffset)
         }
