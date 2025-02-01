@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct LikesView: View {
+    @StateObject var searchViewModel = SearchViewModel()
     @ObservedObject var restaurantViewModel: RestaurantViewModel
     @State private var searchText: String = ""
     
@@ -19,7 +20,7 @@ struct LikesView: View {
             LikeShopsListView(restaurantViewModel: restaurantViewModel)
         }
         .fullScreenCover(isPresented: $isSearchPresented) {
-            LikesSearchView(isPresented: $isSearchPresented, searchText: $searchText)
+            LikesSearchView(searchViewModel: searchViewModel, isPresented: $isSearchPresented, searchText: $searchText)
         }
     }
 }

@@ -8,10 +8,9 @@
 import SwiftUI
 
 struct LikesSearchView: View {
-    @ObservedObject var searchViewModel = SearchViewModel()
+    @ObservedObject var searchViewModel: SearchViewModel
     @Binding var isPresented: Bool
     @Binding var searchText: String
-    @State private var searchHistory : [String] = []
     @FocusState private var isTextFieldFocused: Bool
     @State private var keyboardOffset: CGFloat = 0
     var body: some View {
@@ -26,11 +25,11 @@ struct LikesSearchView: View {
                     ZStack(alignment: .leading) {
                         if searchText.isEmpty {
                             Text("エリア ジャンル 店名 など")
-                                .foregroundColor(Color("FC").opacity(0.5)) // ✅ プレースホルダーの色を変更
+                                .foregroundColor(Color("FC").opacity(0.5))
                                 .padding(.leading, 5)
                         }
                         TextField("", text: $searchText, onCommit: {
-                            searchViewModel.performSearch("")
+                            searchViewModel.performSearch(searchText)
                             isPresented = false
                         })
                         .focused($isTextFieldFocused)
@@ -82,23 +81,19 @@ struct LikesSearchView: View {
                 .padding(.vertical, 4)
                 
                 // 履歴セクション
-                if !searchHistory.isEmpty {
-                    Section(header: HStack {
-                        Text("履歴").font(.headline).bold()
-                            .foregroundStyle(Color("FC"))
-                        Spacer()
-                        Button("すべて削除") {
-                            searchHistory.removeAll()
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    }) {
-                        ForEach(searchHistory, id: \.self) { history in
+                if !searchViewModel.searchHistory.isEmpty {
+                    Section(header: historyHeader) {
+                        ForEach(searchViewModel.searchHistory, id: \.self) { history in
                             Button {
                                 searchText = history
-                                searchViewModel.performSearch("")
+                                searchViewModel.performSearch(history)
                             } label: {
-                                Text(history)
+                                HStack {
+                                    Image(systemName: "clock")
+                                        .foregroundColor(Color("FC").opacity(0.5))
+                                        .padding(.trailing)
+                                    Text(history)
+                                }
                             }
                         }
                         .onDelete(perform: searchViewModel.removeHistory)
@@ -106,6 +101,7 @@ struct LikesSearchView: View {
                     .listRowBackground(Color("WB"))
                     .padding(.vertical, 4)
                 }
+
             }
             .listStyle(PlainListStyle()) // セル間の余白を減らす
             .background(Color("WB"))
@@ -130,8 +126,23 @@ struct LikesSearchView: View {
             }
         }
     }
+    /// 履歴セクションのヘッダー
+        private var historyHeader: some View {
+            HStack {
+                Text("履歴").font(.headline).bold()
+                    .foregroundStyle(Color("FC"))
+                Spacer()
+                Button("すべて削除") {
+                    searchViewModel.clearHistory()
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+        }
 }
 
 #Preview {
-    LikesSearchView(isPresented: .constant(true), searchText: .constant(""))
+    LikesSearchView(searchViewModel: SearchViewModel(),
+                    isPresented: .constant(true),
+                    searchText: .constant(""))
 }
