@@ -24,8 +24,18 @@ struct LikesView: View {
     var body: some View {
         VStack {
             TextFieldLikeView(isSearchPresented: $isSearchPresented, searchText: $searchText)
-            GenreTabBarView(likesTabViewModel: likesTabViewModel, restaurantViewModel: restaurantViewModel, isGenreActive: true)
-            LikeShopsListView(restaurantViewModel: restaurantViewModel, searchViewModel: searchViewModel, searchText: $searchText)
+            GenreTabBarView(
+                likesTabViewModel: likesTabViewModel,
+                searchViewModel: searchViewModel,
+                restaurantViewModel: restaurantViewModel,
+                searchText: $searchText, // 🔹 `searchText` を渡す
+                isGenreActive: true
+            )
+            LikeShopsListView(
+                restaurantViewModel: restaurantViewModel,
+                searchViewModel: searchViewModel,
+                searchText: $searchText
+            )
         }
         .fullScreenCover(isPresented: $isSearchPresented) {
             LikesSearchView(searchViewModel: searchViewModel, isPresented: $isSearchPresented, searchText: $searchText)
@@ -34,11 +44,14 @@ struct LikesView: View {
 }
 
 #Preview {
+    @Previewable @State var searchText = ""  // 🔹 `searchText` を `@State` で用意
     let restaurantViewModel = RestaurantViewModel()
-    restaurantViewModel.favoriteShops = [
-        MockShop.mockShop,
-        MockShop.mockShop
-    ]
+    let searchViewModel = SearchViewModel(restaurantViewModel: restaurantViewModel)
+    let likesTabViewModel = LikesTabViewModel(restaurantViewModel: restaurantViewModel)
+    
+    restaurantViewModel.favoriteShops = [MockShop.mockShop]
+    
     return LikesView(restaurantViewModel: restaurantViewModel)
 }
+
 
