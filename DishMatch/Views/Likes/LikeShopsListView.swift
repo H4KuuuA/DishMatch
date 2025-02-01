@@ -10,7 +10,9 @@ import SwiftUI
 struct LikeShopsListView: View {
     @ObservedObject var restaurantViewModel: RestaurantViewModel
     @ObservedObject var searchViewModel: SearchViewModel
+    
     @Binding var searchText: String
+    
     @State private var isVisible = false
     @State private var refreshTrigger = false
     

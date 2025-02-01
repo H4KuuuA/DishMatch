@@ -8,10 +8,12 @@
 import SwiftUI
 
 struct GenreTabBarView: View {
-    @State private var selectedIndex: Int = 0
     @ObservedObject var likesTabViewModel: LikesTabViewModel
     @ObservedObject var searchViewModel: SearchViewModel
     @ObservedObject var restaurantViewModel: RestaurantViewModel
+    
+    @State private var selectedIndex: Int = 0
+    
     @Binding var searchText: String
 
     let isGenreActive: Bool
@@ -57,7 +59,7 @@ struct GenreTabBarView: View {
 }
 
 #Preview {
-    @Previewable @State var searchText = ""  // 🔹 `@Binding` に渡すための `@State` を用意
+    @Previewable @State var searchText = ""  
     let restaurantViewModel = RestaurantViewModel()
     let searchViewModel = SearchViewModel(restaurantViewModel: restaurantViewModel)
     let likesTabViewModel = LikesTabViewModel(restaurantViewModel: restaurantViewModel)
@@ -68,7 +70,7 @@ struct GenreTabBarView: View {
         likesTabViewModel: likesTabViewModel,
         searchViewModel: searchViewModel,
         restaurantViewModel: restaurantViewModel,
-        searchText: $searchText,  // 🔹 `@Binding` に渡す
+        searchText: $searchText,
         isGenreActive: true
     )
 }

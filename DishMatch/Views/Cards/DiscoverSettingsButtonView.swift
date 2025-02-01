@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DiscoverSettingsButtonView: View {
     @Binding var isShowDiscoverSettings: Bool
+    
     var body: some View {
         Button {
             isShowDiscoverSettings.toggle()

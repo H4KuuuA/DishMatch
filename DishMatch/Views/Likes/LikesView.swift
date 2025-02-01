@@ -28,7 +28,7 @@ struct LikesView: View {
                 likesTabViewModel: likesTabViewModel,
                 searchViewModel: searchViewModel,
                 restaurantViewModel: restaurantViewModel,
-                searchText: $searchText, // 🔹 `searchText` を渡す
+                searchText: $searchText, 
                 isGenreActive: true
             )
             LikeShopsListView(

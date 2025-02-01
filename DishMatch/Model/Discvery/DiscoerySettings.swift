@@ -7,7 +7,7 @@
 
 import Foundation
 
-class DiscoverySettings: ObservableObject {
+final class DiscoverySettings: ObservableObject {
     static let shared = DiscoverySettings()
     
     // 設定項目を @Published で宣言

@@ -9,7 +9,7 @@ import Foundation
 import Combine
 import SwiftUICore
 
-class SearchViewModel: ObservableObject {
+final class SearchViewModel: ObservableObject {
     @Published var searchHistory: [String] = []
     @Published var searchResults: [Shop] = []
     
@@ -21,7 +21,7 @@ class SearchViewModel: ObservableObject {
         bindFavoriteShops()
     }
 
-    /// `restaurantViewModel.favoriteShops` を監視し、変更時に `searchResults` を更新
+    /// restaurantViewModel.favoriteShopsを監視し、変更時にsearchResultsを更新
     private func bindFavoriteShops() {
         restaurantViewModel.$favoriteShops
             .receive(on: DispatchQueue.main)
@@ -31,7 +31,7 @@ class SearchViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// `favoriteShops` の中から `searchText` に部分一致する `Shop` を検索
+    /// favoriteShopsの中からsearchTextに部分一致するShopを検索
     func performSearch(_ text: String) {
         guard !text.isEmpty else {
             searchResults = []
@@ -50,7 +50,7 @@ class SearchViewModel: ObservableObject {
         addSearchHistory(text)
     }
 
-    /// `restaurantViewModel.favoriteShops` の変更時に `searchResults` を最新化
+    /// restaurantViewModel.favoriteShopsの変更時にsearchResultsを最新化
     private func updateSearchResults() {
         searchResults = restaurantViewModel.favoriteShops
     }

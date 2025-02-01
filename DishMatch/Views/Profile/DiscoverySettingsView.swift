@@ -16,9 +16,9 @@ import SwiftUI
 
 struct DiscoverySettingsView: View {
     @Environment(\.dismiss) var dismiss
-    @Binding var viewID: UUID // ビュー更新用の識別子
     // シングルトンインスタンスを @ObservedObject として利用
     @ObservedObject private var settings = DiscoverySettings.shared
+    @Binding var viewID: UUID // ビュー更新用の識別子
     
     var body: some View {
         NavigationView {

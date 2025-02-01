@@ -9,9 +9,12 @@ import SwiftUI
 
 struct LikesSearchView: View {
     @ObservedObject var searchViewModel: SearchViewModel
+    
     @Binding var isPresented: Bool
     @Binding var searchText: String
+    
     @FocusState private var isTextFieldFocused: Bool
+    
     @State private var keyboardOffset: CGFloat = 0
     var body: some View {
         VStack(spacing: 0) {

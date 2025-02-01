@@ -9,7 +9,7 @@ import Foundation
 import Combine
 import SwiftUICore
 
-class LikesTabViewModel: ObservableObject {
+final class LikesTabViewModel: ObservableObject {
     @Published var uniqueShops: [Shop] = []
 
     @ObservedObject var restaurantViewModel: RestaurantViewModel
