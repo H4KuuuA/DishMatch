@@ -57,8 +57,6 @@ struct LikesSearchView: View {
                     isPresented = false
                     isTextFieldFocused = false
                 }
-                .font(.callout)
-                .fontWeight(.bold)
                 .foregroundColor(.blue)
                 .padding(.horizontal)
             }
