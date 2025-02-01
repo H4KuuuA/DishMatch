@@ -36,16 +36,20 @@ class LikesTabViewModel: ObservableObject {
         let favoriteShops = restaurantViewModel.favoriteShops
         // 文字列（ジャンル名）で管理
         var seenGenres = Set<String>()
-        uniqueShops = favoriteShops.filter { shop in
-            if seenGenres.contains(shop.genre.name) {
-                return false
-            } else {
-                // 初めて見つかったジャンルなら記録し、リストに残す
-                seenGenres.insert(shop.genre.name)
-                return true
-            }
+        // `"すべて"` を最初に追加
+            var filteredShops: [Shop] = [MockShop.mockShop]
+
+            filteredShops.append(contentsOf: favoriteShops.filter { shop in
+                if seenGenres.contains(shop.genre.name) {
+                    return false
+                } else {
+                    seenGenres.insert(shop.genre.name)
+                    return true
+                }
+            })
+
+            uniqueShops = filteredShops
         }
-    }
 
 
 }
