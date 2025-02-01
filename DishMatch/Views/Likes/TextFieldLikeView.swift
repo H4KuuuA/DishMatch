@@ -27,8 +27,8 @@ struct TextFieldLikeView: View {
                             .foregroundColor(.gray)
                             .padding(.leading, 5)
                     } else {
-                        Text(searchText) // ✅ 検索ワードを表示
-                            .foregroundColor(.black)
+                        Text(searchText) 
+                            .foregroundColor(Color("FC"))
                             .padding(.leading, 5)
                     }
                     
