@@ -10,18 +10,20 @@ import SwiftUI
 struct GenreTabBarView: View {
     @State private var selectedIndex: Int = 0
     @ObservedObject var likesTabViewModel: LikesTabViewModel
+    @ObservedObject var restaurantViewModel: RestaurantViewModel
+    
     let isGenreActive: Bool
 
     var body: some View {
         VStack {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
-                    // LikesViewModelに基づいてuniqueStoresを表示
-                    ForEach(likesTabViewModel.uniqueStores.indices, id: \.self) { index in
-                        let store = likesTabViewModel.uniqueStores[index]
+                    // LikesTabViewModelに基づいてuniqueShopsを表示
+                    ForEach(likesTabViewModel.uniqueShops.indices, id: \.self) { index in
+                        let shop = likesTabViewModel.uniqueShops[index]
                         
                         VStack(alignment: .leading) {
-                            Text(store.genre)
+                            Text(shop.genre.name)
                                 .font(.system(size: 18))
                                 .fontWeight(.semibold)
                                 .foregroundColor(index == selectedIndex && isGenreActive ? Color(.orange) : Color("FC").opacity(0.6))
@@ -34,7 +36,6 @@ struct GenreTabBarView: View {
                         }
                         .padding(.trailing)
                         .onTapGesture {
-                            // タップされたインデックスを選択
                             selectedIndex = index
                         }
                     }
@@ -42,13 +43,9 @@ struct GenreTabBarView: View {
             }
             .padding(.horizontal)
         }
-        .onAppear {
-            // 初回表示時にuniqueStoresを設定
-            likesTabViewModel.updateStores(likesTabViewModel.uniqueStores)
-        }
     }
 }
 
 #Preview {
-    GenreTabBarView(likesTabViewModel: LikesTabViewModel(stores: MockData.stores), isGenreActive: true)
+    GenreTabBarView(likesTabViewModel: LikesTabViewModel(restaurantViewModel: RestaurantViewModel()), restaurantViewModel: RestaurantViewModel(), isGenreActive: true)
 }

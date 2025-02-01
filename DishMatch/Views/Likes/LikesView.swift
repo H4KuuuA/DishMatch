@@ -9,14 +9,21 @@ import SwiftUI
 
 struct LikesView: View {
     @StateObject var searchViewModel = SearchViewModel()
-    @ObservedObject var restaurantViewModel: RestaurantViewModel
+    @StateObject private var likesTabViewModel: LikesTabViewModel
+    @ObservedObject var restaurantViewModel: RestaurantViewModel 
+
     @State private var searchText: String = ""
-    
     @State private var isSearchPresented = false
+
+    init(restaurantViewModel: RestaurantViewModel) {
+        _restaurantViewModel = ObservedObject(wrappedValue: restaurantViewModel)
+        _likesTabViewModel = StateObject(wrappedValue: LikesTabViewModel(restaurantViewModel: restaurantViewModel))
+    }
+
     var body: some View {
         VStack {
             TextFieldLikeView(isSearchPresented: $isSearchPresented, searchText: $searchText)
-            GenreTabBarView(likesTabViewModel: LikesTabViewModel(stores: MockData.stores), isGenreActive: true)
+            GenreTabBarView(likesTabViewModel: likesTabViewModel, restaurantViewModel: restaurantViewModel, isGenreActive: true)
             LikeShopsListView(restaurantViewModel: restaurantViewModel)
         }
         .fullScreenCover(isPresented: $isSearchPresented) {
@@ -31,6 +38,5 @@ struct LikesView: View {
         MockShop.mockShop,
         MockShop.mockShop
     ]
-    
     return LikesView(restaurantViewModel: restaurantViewModel)
 }
