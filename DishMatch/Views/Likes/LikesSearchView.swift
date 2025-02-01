@@ -142,7 +142,7 @@ struct LikesSearchView: View {
 }
 
 #Preview {
-    LikesSearchView(searchViewModel: SearchViewModel(),
+    LikesSearchView(searchViewModel: SearchViewModel(restaurantViewModel: RestaurantViewModel()),
                     isPresented: .constant(true),
                     searchText: .constant(""))
 }
