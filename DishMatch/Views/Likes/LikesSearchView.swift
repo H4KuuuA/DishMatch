@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct LikesSearchView: View {
+    @ObservedObject var searchViewModel = SearchViewModel()
     @Binding var isPresented: Bool
     @Binding var searchText: String
     @State private var searchHistory : [String] = []
@@ -29,7 +30,7 @@ struct LikesSearchView: View {
                                 .padding(.leading, 5)
                         }
                         TextField("", text: $searchText, onCommit: {
-                            performSearch()
+                            searchViewModel.performSearch("")
                             isPresented = false
                         })
                         .focused($isTextFieldFocused)
@@ -95,12 +96,12 @@ struct LikesSearchView: View {
                         ForEach(searchHistory, id: \.self) { history in
                             Button {
                                 searchText = history
-                                performSearch()
+                                searchViewModel.performSearch("")
                             } label: {
                                 Text(history)
                             }
                         }
-                        .onDelete(perform: removeHistory)
+                        .onDelete(perform: searchViewModel.removeHistory)
                     }
                     .listRowBackground(Color("WB"))
                     .padding(.vertical, 4)
@@ -128,20 +129,6 @@ struct LikesSearchView: View {
                 }
             }
         }
-    }
-    
-    /// 検索実行 (仮)
-    private func performSearch() {
-        if !searchText.isEmpty {
-            if !searchHistory.contains(searchText) {
-                searchHistory.insert(searchText, at: 0) // 新しい検索履歴を先頭に追加
-            }
-        }
-    }
-
-    /// 履歴の削除
-    private func removeHistory(at offsets: IndexSet) {
-        searchHistory.remove(atOffsets: offsets)
     }
 }
 
