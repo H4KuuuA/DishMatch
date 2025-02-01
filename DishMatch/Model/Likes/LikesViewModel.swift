@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 
-class LikesViewModel: ObservableObject {
+class LikesTabViewModel: ObservableObject {
     @Published var uniqueStores: [Store] = []
 
     private var stores: [Store] = [] {

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct GenreTabBarView: View {
     @State private var selectedIndex: Int = 0
-    @ObservedObject var LikesViewModel: LikesViewModel
+    @ObservedObject var likesTabViewModel: LikesTabViewModel
     let isGenreActive: Bool
 
     var body: some View {
@@ -17,8 +17,8 @@ struct GenreTabBarView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
                     // LikesViewModelに基づいてuniqueStoresを表示
-                    ForEach(LikesViewModel.uniqueStores.indices, id: \.self) { index in
-                        let store = LikesViewModel.uniqueStores[index]
+                    ForEach(likesTabViewModel.uniqueStores.indices, id: \.self) { index in
+                        let store = likesTabViewModel.uniqueStores[index]
                         
                         VStack(alignment: .leading) {
                             Text(store.genre)
@@ -44,11 +44,11 @@ struct GenreTabBarView: View {
         }
         .onAppear {
             // 初回表示時にuniqueStoresを設定
-            LikesViewModel.updateStores(LikesViewModel.uniqueStores)
+            likesTabViewModel.updateStores(likesTabViewModel.uniqueStores)
         }
     }
 }
 
 #Preview {
-    GenreTabBarView(LikesViewModel: LikesViewModel(stores: MockData.stores), isGenreActive: true)
+    GenreTabBarView(likesTabViewModel: LikesTabViewModel(stores: MockData.stores), isGenreActive: true)
 }

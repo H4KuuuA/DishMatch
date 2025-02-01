@@ -16,7 +16,7 @@ struct LikesView: View {
     var body: some View {
         VStack {
             TextFieldLikeView(isSearchPresented: $isSearchPresented, searchText: $searchText)
-            GenreTabBarView(LikesViewModel: LikesViewModel(stores: MockData.stores), isGenreActive: true)
+            GenreTabBarView(likesTabViewModel: LikesTabViewModel(stores: MockData.stores), isGenreActive: true)
             LikeShopsListView(restaurantViewModel: restaurantViewModel)
         }
         .fullScreenCover(isPresented: $isSearchPresented) {
