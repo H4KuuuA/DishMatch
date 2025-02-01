@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SwipeActionIndicatorView: View {
     @Binding var xOffset: CGFloat
+    
     let screenCutOff: CGFloat
     
     var body: some View {

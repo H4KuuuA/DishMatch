@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ImageScrollingOverlay: View {
     @Binding var currentImageIndex: Int
+    
     let imagecount: Int
     
     var body: some View {

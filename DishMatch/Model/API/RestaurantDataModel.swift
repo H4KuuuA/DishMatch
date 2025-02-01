@@ -72,7 +72,7 @@ struct Shop: Decodable,Identifiable,Equatable {
        }
 }
 
-struct Genre: Decodable {
+struct Genre: Decodable,Hashable {
     // ジャンル名（例：和食、洋食など）
     let name: String
     // ジャンルのキャッチフレーズ

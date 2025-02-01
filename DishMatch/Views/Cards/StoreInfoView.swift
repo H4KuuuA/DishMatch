@@ -10,7 +10,7 @@ import SwiftUI
 struct StoreInfoView: View {
     @Binding var isShowProfileModal: Bool
 
-    let shop: Shop // `Store` を `Shop` に置き換え
+    let shop: Shop 
 
     var body: some View {
         VStack(alignment: .leading) {

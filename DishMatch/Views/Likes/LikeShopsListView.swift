@@ -9,20 +9,28 @@ import SwiftUI
 
 struct LikeShopsListView: View {
     @ObservedObject var restaurantViewModel: RestaurantViewModel
+    @ObservedObject var searchViewModel: SearchViewModel
+    
+    @Binding var searchText: String
+    
     @State private var isVisible = false
     @State private var refreshTrigger = false
+    
+    var displayedShops: [Shop] {
+        searchText.isEmpty ? restaurantViewModel.favoriteShops : searchViewModel.searchResults
+    }
     
     var body: some View {
         NavigationView {
             ScrollView {
-                if restaurantViewModel.favoriteShops.isEmpty {
-                    Text("お気に入りがまだありません")
+                if displayedShops.isEmpty {
+                    Text("該当するお店がありません")
                         .foregroundColor(.gray)
                         .font(.headline)
                         .padding()
                 } else {
                     LazyVStack(spacing: 16) {
-                        ForEach(restaurantViewModel.favoriteShops, id: \.id) { shop in
+                        ForEach(displayedShops, id: \.id) { shop in
                             Button(action: {
                                 print("DEBUG: \(shop.name) tapped")
                             }) {
@@ -96,7 +104,7 @@ struct LikeShopsListView: View {
             .background(Color("WB"))
             .navigationBarTitleDisplayMode(.inline)
             .refreshable {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { // 0.3秒遅延
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     withAnimation(.easeOut(duration: 0.5)) {
                         refreshTrigger.toggle()
                     }
@@ -109,10 +117,12 @@ struct LikeShopsListView: View {
 
 #Preview {
     let restaurantViewModel = RestaurantViewModel()
+    let searchViewModel = SearchViewModel(restaurantViewModel: restaurantViewModel)
+    
     restaurantViewModel.favoriteShops = [
         MockShop.mockShop,
         MockShop.mockShop
     ]
     
-    return LikeShopsListView(restaurantViewModel: restaurantViewModel)
+    return LikeShopsListView(restaurantViewModel: restaurantViewModel, searchViewModel: searchViewModel, searchText: .constant(""))
 }
