@@ -65,8 +65,8 @@ struct CardStackView: View {
                 DiscoverySettingsView(viewID: $viewID)
             }
             .id(viewID) // `viewID` を利用してビューをリロード
-            .onChange(of: viewID) { _ in
-                restaurantViewModel.fetchShops(startIndex: 1) // データ取得をトリガー
+            .onChange(of: viewID) {
+                restaurantViewModel.fetchShops(startIndex: 1)
             }
             .onAppear {
                 if isFirstAppearance {
