@@ -44,7 +44,7 @@ struct LikesView: View {
 }
 
 #Preview {
-    @Previewable @State var searchText = ""  // 🔹 `searchText` を `@State` で用意
+    @Previewable @State var searchText = ""  
     let restaurantViewModel = RestaurantViewModel()
     let searchViewModel = SearchViewModel(restaurantViewModel: restaurantViewModel)
     let likesTabViewModel = LikesTabViewModel(restaurantViewModel: restaurantViewModel)
