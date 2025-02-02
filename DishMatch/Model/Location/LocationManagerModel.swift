@@ -10,30 +10,39 @@ import CoreLocation
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = LocationManager() // シングルトンインスタンス
-
-    private var locationManager = CLLocationManager()
+    
     @Published var latitude: Double = 0.0
     @Published var longitude: Double = 0.0
+    @Published var locationError: LocationError?
     private var locationContinuation: CheckedContinuation<Void, Never>?
-
+    private var locationManager = CLLocationManager()
+    
     private override init() {
         super.init()
         locationManager.delegate = self
         locationManager.requestAlwaysAuthorization()
     }
-
+    
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        if status == .authorizedAlways || status == .authorizedWhenInUse {
+        DispatchQueue.global(qos: .background).async {
             if CLLocationManager.locationServicesEnabled() {
-                locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
-                locationManager.distanceFilter = 10
-                locationManager.allowsBackgroundLocationUpdates = true
-                locationManager.pausesLocationUpdatesAutomatically = false
-                locationManager.startUpdatingLocation()
+                DispatchQueue.main.async {
+                    self.locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+                    self.locationManager.distanceFilter = 10
+                    self.locationManager.allowsBackgroundLocationUpdates = true
+                    self.locationManager.pausesLocationUpdatesAutomatically = false
+                    self.locationManager.startUpdatingLocation()
+                }
+            } else {
+                // 位置情報が無効ならエラーをセット
+                DispatchQueue.main.async {
+                    self.locationError = .locationServicesDisabled
+                }
             }
         }
     }
-
+    
+    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
         DispatchQueue.main.async {
@@ -43,7 +52,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.locationContinuation = nil
         }
     }
-
+    
     func requestLocationPermissionIfNeeded() async {
         guard latitude == 0.0 && longitude == 0.0 else { return } // 既に取得済みの場合はスキップ
         await withCheckedContinuation { continuation in

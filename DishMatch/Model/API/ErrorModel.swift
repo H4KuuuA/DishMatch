@@ -62,3 +62,31 @@ enum DataError: Error {
         }
     }
 }
+
+enum LocationError: Error {
+    case locationServicesDisabled
+    case authorizationDenied
+    case failedToGetLocation
+
+    var errorTitle: String {
+        switch self {
+        case .locationServicesDisabled:
+            return "位置情報サービスが無効"
+        case .authorizationDenied:
+            return "位置情報の許可が必要"
+        case .failedToGetLocation:
+            return "位置情報の取得に失敗"
+        }
+    }
+
+    var errorMessage: String {
+        switch self {
+        case .locationServicesDisabled:
+            return "位置情報サービスが無効になっています。設定アプリから有効にしてください。"
+        case .authorizationDenied:
+            return "アプリの位置情報利用が拒否されています。設定アプリから許可してください。"
+        case .failedToGetLocation:
+            return "現在の位置情報を取得できませんでした。通信環境を確認してください。"
+        }
+    }
+}
