@@ -19,7 +19,8 @@ struct MockShop {
         shopCatch: "Best sushi in town!",
         urls: Urls(pc: "https://example.com/sushi"),
         stationName: "Shinjuku Station",
-        budget: Budget(code: "B001", name: "～1000")
+        budget: Budget(code: "B001", name: "～1000"),
+        mobile_access: "東京駅から徒歩1分"
         
     )
 }

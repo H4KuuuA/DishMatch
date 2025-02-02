@@ -69,7 +69,7 @@ struct StoreProfileView: View {
 
                                 Text("|")
                                 Image(systemName: "mappin.and.ellipse")
-                                Text("\(shop.stationName)") // 最寄り駅名
+                                Text("\(shop.mobile_access)") // 最寄り駅名
                             }
                             .foregroundStyle(Color("FC"))
                             .font(.caption)

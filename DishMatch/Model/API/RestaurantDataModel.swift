@@ -54,6 +54,8 @@ struct Shop: Decodable,Identifiable,Equatable {
     let stationName: String
     // ディナー予算
     let budget: Budget?
+    // アクセス情報
+    let mobile_access: String
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -69,6 +71,8 @@ struct Shop: Decodable,Identifiable,Equatable {
         // "station_name" というJSONキーを stationName にマッピング
         case stationName = "station_name"
         case budget
+        // "mobile_access"というJSONキーを　mobile_access　にマッピング
+        case mobile_access = "mobile_access"
     }
     static func == (lhs: Shop, rhs: Shop) -> Bool {
            return lhs.id == rhs.id
