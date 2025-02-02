@@ -69,12 +69,12 @@ struct StoreProfileView: View {
 
                                 Text("|")
                                 Image(systemName: "mappin.and.ellipse")
-                                Text("\(shop.stationName)") // 最寄り駅名
+                                Text("\(shop.mobile_access)") // 最寄り駅名
                             }
                             .foregroundStyle(Color("FC"))
                             .font(.caption)
                             .lineLimit(2)
-
+                            
                             Text("店舗情報  (詳細)")
                                 .foregroundStyle(Color("FC"))
                                 .fontWeight(.semibold)
@@ -92,6 +92,9 @@ struct StoreProfileView: View {
                             InfoRow(title: "定休日", detail: shop.close)
                                 
                             Divider()
+                            InfoRow(title: "予算", detail: shop.budget?.name ?? "不明")
+                                
+                            Divider()
                             // HPリンク
                             if let url = URL(string: shop.urls.pc) {
                                 HStack {
@@ -106,6 +109,7 @@ struct StoreProfileView: View {
                                 }
                                 .padding(.vertical, 6)
                             }
+                            Spacer()
                             Spacer()
                         }
                         .padding()

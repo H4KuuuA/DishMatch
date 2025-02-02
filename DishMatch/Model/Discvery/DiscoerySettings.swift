@@ -12,7 +12,7 @@ final class DiscoverySettings: ObservableObject {
     
     // 設定項目を @Published で宣言
     @Published var selectedRange: MenuRangeType = .range5
-    @Published var budget: Double = 2000
+    @Published var selectedBudget: BudgetType = .noPreference
     @Published var isAllYouCanDrink: Bool = false
     @Published var isAllYouCanEat: Bool = false
     @Published var isPrivateRoomAvailable: Bool = false

@@ -41,14 +41,12 @@ struct DiscoverySettingsView: View {
                 
                 // 予算設定
                 Section {
-                    HStack {
-                        Text("予算")
-                        Spacer()
-                        Text("\(Int(settings.budget)) 円")
-                            .foregroundColor(.gray)
+                    Picker("予算", selection: $settings.selectedBudget) {
+                        ForEach(BudgetType.allCases, id: \.self) { budget in
+                            Text(budget.rawValue).tag(budget)
+                        }
                     }
-                    Slider(value: $settings.budget, in: 500...20000, step: 100)
-                        .tint(.orange)
+                    .pickerStyle(MenuPickerStyle())
                 }
                 
                 // その他の設定
@@ -76,7 +74,7 @@ struct DiscoverySettingsView: View {
                     Button {
                         // 完了処理：設定内容をコンソールで表示
                         print("距離設定: \(settings.selectedRange.range)")
-                        print("予算設定: \(Int(settings.budget)) 円")
+                        print("予算設定: \(settings.selectedBudget.rawValue) (\(settings.selectedBudget.budgetCode))")
                         print("飲み放題: \(settings.isAllYouCanDrink ? "有効" : "無効")")
                         print("食べ放題: \(settings.isAllYouCanEat ? "有効" : "無効")")
                         print("個室あり: \(settings.isPrivateRoomAvailable ? "有効" : "無効")")
@@ -101,6 +99,6 @@ struct DiscoverySettingsView: View {
         }
     }
 }
-    #Preview {
-        DiscoverySettingsView(viewID: .constant(UUID()))
-    }
+#Preview {
+    DiscoverySettingsView(viewID: .constant(UUID()))
+}

@@ -11,8 +11,9 @@ import Foundation
 final class APIClient {
     private let pageSize = 20
     
-    func fetchRestaurantData(keyword: String?, range: String, genre: String?, startIndex: Int) async throws -> RestaurantDataModel {
-        guard let url = createAPIRequestURL(keyword: keyword, range: range, genre: genre, startIndex: startIndex) else {
+    /// レストランデータを取得
+    func fetchRestaurantData(keyword: String?, range: String, genre: String?, budget: String?, startIndex: Int) async throws -> RestaurantDataModel {
+        guard let url = createAPIRequestURL(keyword: keyword, range: range, genre: genre, budget: budget, startIndex: startIndex) else {
             throw APIError.failCreateURL
         }
         print("DEBUG: APIリクエストURL: \(url.absoluteString)")
@@ -30,7 +31,8 @@ final class APIClient {
         return try decodeAPIResponse(responseData: data)
     }
     
-    private func createAPIRequestURL(keyword: String?, range: String, genre: String?, startIndex: Int) -> URL? {
+    /// APIリクエストURLを作成
+    private func createAPIRequestURL(keyword: String?, range: String, genre: String?, budget: String?, startIndex: Int) -> URL? {
         let locationManager = LocationManager.shared
         let keyManager = KeyManager()
         let baseURL = URL(string: "https://webservice.recruit.co.jp/hotpepper/gourmet/v1")
@@ -59,11 +61,16 @@ final class APIClient {
         if let genre {
             queryItems.append(URLQueryItem(name: "genre", value: genre))
         }
+        
+        if let budget, !budget.isEmpty {
+            queryItems.append(URLQueryItem(name: "budget", value: budget))
+        }
 
         urlComponents?.queryItems = queryItems
         return urlComponents?.url
     }
     
+    /// APIレスポンスをデコード
     private func decodeAPIResponse(responseData: Data) throws -> RestaurantDataModel {
         let decoder = JSONDecoder()
         return try decoder.decode(RestaurantDataModel.self, from: responseData)
