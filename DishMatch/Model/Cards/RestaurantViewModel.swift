@@ -21,18 +21,21 @@ final class RestaurantViewModel: ObservableObject {
     private let settings = DiscoverySettings.shared
     private var currentPage = 1
     private let pageSize = 20
-    private var totalResults = 0 // APIからの全体のデータ数
-    private var hasMorePages = true // これ以上ページがあるかどうか
-    
-    /// キーワードやジャンルに基づいて店舗データをAPIから取得する（最初のページ）
+    private var totalResults = 0
+    private var hasMorePages = true
+
+    /// キーワードやジャンル、予算に基づいて店舗データをAPIから取得する（最初のページ）
     /// - Parameters:
-    /// - keyword: 検索するキーワード（例: "ラーメン"）【省略可能】
-    /// - genre: 検索するジャンルID（例: "G001"）【省略可能】
-    ///　- startIndex: 取得を開始するインデックス（デフォルトは1）
-    func fetchShops(keyword: String? = nil, genre: String? = nil, startIndex: Int = 1) {
+    ///   - keyword: 検索するキーワード（例: "ラーメン"）【省略可能】
+    ///   - genre: 検索するジャンルID（例: "G001"）【省略可能】
+    ///   - budget: 検索する予算コード（例: "B003"）【省略可能】
+    ///   - startIndex: 取得を開始するインデックス（デフォルトは1）
+    func fetchShops(keyword: String? = nil, genre: String? = nil, budget: String? = nil, startIndex: Int = 1) {
         guard !isLoading else { return } // 既にロード中なら処理しない
         isLoading = true
         isFetchingNextPage = true
+        // こだわらない場合は nil
+        let budgetParam = budget == "" ? nil : budget
         
         Task {
             do {
@@ -40,19 +43,17 @@ final class RestaurantViewModel: ObservableObject {
                 await locationManager.requestLocationPermissionIfNeeded()
                 let range = settings.selectedRange.rangeValue
                 // API からデータ取得
-                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre, startIndex: startIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre, budget: budget, startIndex: startIndex)
                 
                 DispatchQueue.main.async {
                     if startIndex == 1 {
                         self.shopList = result.results.shop
-                        // 初回のみ currentPage をリセット
                         self.currentPage = 1
                     } else {
                         self.shopList.insert(contentsOf: result.results.shop, at: 0)
                     }
                     
                     self.totalResults = result.results.resultsAvailable
-                    // まだデータがあるか判定
                     self.hasMorePages = self.shopList.count < self.totalResults
                     self.isLoading = false
                     self.isFetchingNextPage = false
@@ -67,10 +68,8 @@ final class RestaurantViewModel: ObservableObject {
         }
     }
     
-    
     /// ページング用のデータを API から取得する
-    func fetchNextPage() {
-        // 初回ロード完了後にのみ実行
+    func fetchNextPage(keyword: String? = nil, genre: String? = nil, budget: String? = nil) {
         guard !isLoading, !isFetchingNextPage else { return }
         guard shopList.count < totalResults else {
             print("⚠️ すべてのデータを取得済みです")
@@ -85,7 +84,7 @@ final class RestaurantViewModel: ObservableObject {
         Task {
             do {
                 let range = settings.selectedRange.rangeValue
-                let result = try await apiClient.fetchRestaurantData(keyword: nil, range: range, genre: nil, startIndex: nextStartIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre, budget: budget, startIndex: nextStartIndex)
                 
                 DispatchQueue.main.async {
                     self.shopList.insert(contentsOf: result.results.shop, at: 0)
@@ -102,12 +101,12 @@ final class RestaurantViewModel: ObservableObject {
     }
     
     /// リストの最後の5つ前で次ページを取得
-    func loadMoreShopsIfNeeded(currentShop: Shop) {
-        guard hasMorePages else { return } // これ以上データがないならリクエストしない
+    func loadMoreShopsIfNeeded(currentShop: Shop, keyword: String? = nil, genre: String? = nil, budget: String? = nil) {
+        guard hasMorePages else { return }
         
         if let lastIndex = shopList.firstIndex(where: { $0.id == currentShop.id }),
            lastIndex >= shopList.count - 5 {
-            fetchNextPage()
+            fetchNextPage(keyword: keyword, genre: genre, budget: budget)
         }
     }
     

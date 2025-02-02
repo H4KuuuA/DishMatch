@@ -161,7 +161,7 @@ enum MenuRangeType: CaseIterable {
         var budgetCode: String {
             switch self {
             case .noPreference:
-                return "lst" // 🔹 こだわらない は "lst"
+                return "" 
             case .under500:
                 return "B009"
             case .from501To1000:
