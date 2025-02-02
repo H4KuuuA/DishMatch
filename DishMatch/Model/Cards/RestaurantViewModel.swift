@@ -35,7 +35,7 @@ final class RestaurantViewModel: ObservableObject {
         isLoading = true
         isFetchingNextPage = true
         // こだわらない場合は nil
-        let budgetParam = budget == "" ? nil : budget
+        let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
         
         Task {
             do {
@@ -43,7 +43,7 @@ final class RestaurantViewModel: ObservableObject {
                 await locationManager.requestLocationPermissionIfNeeded()
                 let range = settings.selectedRange.rangeValue
                 // API からデータ取得
-                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre, budget: budget, startIndex: startIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre, budget: budgetParam, startIndex: startIndex)
                 
                 DispatchQueue.main.async {
                     if startIndex == 1 {
@@ -81,10 +81,13 @@ final class RestaurantViewModel: ObservableObject {
         
         print("DEBUG 📌: fetchNextPage() - startIndex = \(nextStartIndex)")
         
+        // こだわらない場合は nil
+        let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
+        
         Task {
             do {
                 let range = settings.selectedRange.rangeValue
-                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre, budget: budget, startIndex: nextStartIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genre, budget: budgetParam, startIndex: nextStartIndex)
                 
                 DispatchQueue.main.async {
                     self.shopList.insert(contentsOf: result.results.shop, at: 0)
