@@ -18,6 +18,8 @@ struct MockShop {
         open: "11:00 AM - 9:00 PM",
         shopCatch: "Best sushi in town!",
         urls: Urls(pc: "https://example.com/sushi"),
-        stationName: "Shinjuku Station"
+        stationName: "Shinjuku Station",
+        budget: Budget(code: "B001", name: "～1000")
+        
     )
 }
