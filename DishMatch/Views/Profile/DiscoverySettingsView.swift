@@ -41,12 +41,6 @@ struct DiscoverySettingsView: View {
                 
                 // 予算設定
                 Section {
-                    HStack {
-                        Text("予算")
-                        Spacer()
-                        Text(settings.selectedBudget.rawValue)
-                            .foregroundColor(.gray)
-                    }
                     Picker("予算", selection: $settings.selectedBudget) {
                         ForEach(BudgetType.allCases, id: \.self) { budget in
                             Text(budget.rawValue).tag(budget)
