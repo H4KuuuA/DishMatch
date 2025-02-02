@@ -5,12 +5,6 @@
 //  Created by 大江悠都 on 2025/01/23.
 //
 
-//
-//  DiscoverySettingsView.swift
-//  DishMatch
-//
-//  Created by 大江悠都 on 2025/01/23.
-//
 
 import SwiftUI
 
