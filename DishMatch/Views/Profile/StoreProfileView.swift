@@ -110,6 +110,7 @@ struct StoreProfileView: View {
                                 .padding(.vertical, 6)
                             }
                             Spacer()
+                            Spacer()
                         }
                         .padding()
                         .background(Color("WB"))
