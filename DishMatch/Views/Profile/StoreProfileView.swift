@@ -74,7 +74,7 @@ struct StoreProfileView: View {
                             .foregroundStyle(Color("FC"))
                             .font(.caption)
                             .lineLimit(2)
-
+                            
                             Text("店舗情報  (詳細)")
                                 .foregroundStyle(Color("FC"))
                                 .fontWeight(.semibold)
@@ -90,6 +90,9 @@ struct StoreProfileView: View {
                                 
                             Divider()
                             InfoRow(title: "定休日", detail: shop.close)
+                                
+                            Divider()
+                            InfoRow(title: "予算", detail: shop.budget?.name ?? "不明")
                                 
                             Divider()
                             // HPリンク
