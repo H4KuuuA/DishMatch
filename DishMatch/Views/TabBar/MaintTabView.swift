@@ -9,6 +9,15 @@ import SwiftUI
 
 struct MainTabView: View {
     @StateObject private var restaurantViewModel = RestaurantViewModel()
+    @StateObject private var searchViewModel: SearchViewModel
+    @StateObject private var likesTabViewModel: LikesTabViewModel
+
+    init() {
+        let restaurantViewModel = RestaurantViewModel()
+        _restaurantViewModel = StateObject(wrappedValue: restaurantViewModel)
+        _searchViewModel = StateObject(wrappedValue: SearchViewModel(restaurantViewModel: restaurantViewModel))
+        _likesTabViewModel = StateObject(wrappedValue: LikesTabViewModel(restaurantViewModel: restaurantViewModel))
+    }
 
     var body: some View {
         TabView {
@@ -18,11 +27,15 @@ struct MainTabView: View {
                 }
                 .tag(0)
 
-            LikesView(restaurantViewModel: restaurantViewModel)
-                .tabItem {
-                    Image(systemName: "heart.fill")
-                }
-                .tag(1)
+            LikesView(
+                searchViewModel: searchViewModel,  
+                likesTabViewModel: likesTabViewModel,
+                restaurantViewModel: restaurantViewModel
+            )
+            .tabItem {
+                Image(systemName: "heart.fill")
+            }
+            .tag(1)
 
             UserProfileView()
                 .tabItem {
@@ -39,3 +52,4 @@ struct MainTabView: View {
 #Preview {
     MainTabView()
 }
+

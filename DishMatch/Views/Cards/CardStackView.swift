@@ -31,12 +31,12 @@ struct CardStackView: View {
                         ForEach(Array(restaurantViewModel.shopList.enumerated()), id: \.element.id) { index, shop in
                             CardView(restaurantViewModel: restaurantViewModel, shop: shop)
                                 
-                                .onChange(of: restaurantViewModel.shopList) { newList in
-                                    // ✅ 残り5枚以下になったら次のページを取得
-                                    if newList.count <= 5 && !restaurantViewModel.isLoading {
+                                .onChange(of: restaurantViewModel.shopList) {
+                                    if restaurantViewModel.shopList.count <= 5 && !restaurantViewModel.isLoading {
                                         restaurantViewModel.fetchNextPage()
                                     }
                                 }
+
 
                         }
 
@@ -65,8 +65,8 @@ struct CardStackView: View {
                 DiscoverySettingsView(viewID: $viewID)
             }
             .id(viewID) // `viewID` を利用してビューをリロード
-            .onChange(of: viewID) { _ in
-                restaurantViewModel.fetchShops(startIndex: 1) // データ取得をトリガー
+            .onChange(of: viewID) {
+                restaurantViewModel.fetchShops(startIndex: 1)
             }
             .onAppear {
                 if isFirstAppearance {
