@@ -12,14 +12,12 @@ struct LikeShopsListView: View {
     @ObservedObject var searchViewModel: SearchViewModel
     
     @Binding var searchText: String
-    
-    @State private var isVisible = false
     @State private var refreshTrigger = false
-    
+
     var displayedShops: [Shop] {
         searchText.isEmpty ? restaurantViewModel.favoriteShops : searchViewModel.searchResults
     }
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -30,72 +28,11 @@ struct LikeShopsListView: View {
                         .padding()
                 } else {
                     LazyVStack(spacing: 16) {
-                        ForEach(displayedShops, id: \.id) { shop in
-                            Button(action: {
-                                print("DEBUG: \(shop.name) tapped")
-                            }) {
-                                HStack(alignment: .top, spacing: 16) {
-                                    // 非同期画像読み込み
-                                    AsyncImage(url: URL(string: shop.photo.pc.l)) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            ProgressView()
-                                                .frame(width: 80, height: 80)
-                                                .background(Color.gray.opacity(0.3))
-                                                .cornerRadius(8)
-                                                .onAppear {
-                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                                                        withAnimation {
-                                                            isVisible = true
-                                                        }
-                                                    }
-                                                }
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 80, height: 80)
-                                                .cornerRadius(8)
-                                                .clipped()
-                                                .opacity(isVisible ? 1 : 0) // フェードイン効果
-                                                .animation(.easeIn(duration: 0.5), value: isVisible)
-                                        case .failure:
-                                            Image(systemName: "photo")
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 80, height: 80)
-                                                .background(Color.gray.opacity(0.3))
-                                                .cornerRadius(8)
-                                        @unknown default:
-                                            EmptyView()
-                                        }
-                                    }
-                                    
-                                    // 店舗情報
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(shop.name)
-                                            .font(.headline)
-                                            .lineLimit(1)
-                                        
-                                        HStack {
-                                            Image(systemName: "fork.knife")
-                                            Text("\(shop.genre.name)")
-                                            Text("|")
-                                            Image(systemName: "mappin.and.ellipse")
-                                            Text("\(shop.stationName)")
-                                        }
-                                        .font(.caption)
-                                        .foregroundStyle(Color("FC").opacity(0.8))
-                                        .lineLimit(1)
-                                    }
-                                    Spacer()
-                                }
+                        ForEach(displayedShops.indices, id: \.self) { index in
+                            let shop = displayedShops[index]
+                            HStack(alignment: .top, spacing: 16) {
+                                LikeShopRow(shop: shop)
                             }
-                            .buttonStyle(PlainButtonStyle())
-                            .contentShape(Rectangle())
-                            .background(Color("WB"))
-                            .cornerRadius(8)
-                            Divider()
                         }
                     }
                     .padding()
@@ -112,6 +49,67 @@ struct LikeShopsListView: View {
             }
         }
         .id(refreshTrigger)
+    }
+}
+
+// MARK: - 店舗情報を表示するRow
+private extension LikeShopsListView {
+    private struct LikeShopRow: View {
+        let shop: Shop
+        @State private var isVisible = false
+        @StateObject private var imageLoader = ImageLoader()
+
+        var body: some View {
+            HStack(alignment: .top, spacing: 16) {
+                if let uiImage = imageLoader.image {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .cornerRadius(8)
+                        .clipped()
+                        .opacity(isVisible ? 1 : 0)
+                        .animation(.easeIn(duration: 0.5), value: isVisible)
+                } else {
+                    ProgressView()
+                        .frame(width: 80, height: 80)
+                        .background(Color.gray.opacity(0.3))
+                        .cornerRadius(8)
+                        .onAppear {
+                            imageLoader.loadImage(from: shop.photo.pc.l)
+                        }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(shop.name)
+                        .font(.headline)
+                        .lineLimit(1)
+
+                    HStack {
+                        Image(systemName: "fork.knife")
+                        Text("\(shop.genre.name)")
+                        Text("|")
+                        Image(systemName: "mappin.and.ellipse")
+                        Text("\(shop.stationName)")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Color("FC").opacity(0.8))
+                    .lineLimit(1)
+                }
+                Spacer()
+            }
+            .buttonStyle(PlainButtonStyle())
+            .contentShape(Rectangle())
+            .background(Color("WB"))
+            .cornerRadius(8)
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation {
+                        isVisible = true
+                    }
+                }
+            }
+        }
     }
 }
 
