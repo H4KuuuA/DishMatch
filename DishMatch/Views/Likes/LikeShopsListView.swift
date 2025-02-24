@@ -28,13 +28,13 @@ struct LikeShopsListView: View {
                         .padding()
                 } else {
                     LazyVStack(spacing: 16) {
-                        ForEach(displayedShops.indices, id: \.self) { index in
-                            let shop = displayedShops[index]
+                        ForEach(displayedShops, id: \.id) { shop in
                             HStack(alignment: .top, spacing: 16) {
                                 LikeShopRow(shop: shop)
                             }
                         }
                     }
+
                     .padding()
                 }
             }
