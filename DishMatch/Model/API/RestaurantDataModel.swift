@@ -31,7 +31,8 @@ struct Results: Decodable {
 }
 
 // 各レストランの情報を表す構造体
-struct Shop: Decodable,Identifiable,Equatable {
+// Codable: お気に入りリストをUserDefaultsにJSONとして保存・復元するためEncodableも必要
+struct Shop: Codable,Identifiable,Equatable {
     /// 識別子
     var id = String()
     // レストラン名
@@ -79,35 +80,38 @@ struct Shop: Decodable,Identifiable,Equatable {
        }
 }
 
-struct Genre: Decodable,Hashable {
+struct Genre: Codable,Hashable {
+    // ジャンルコード（例："G001"）。友達の好みジャンルとの一致判定に使う
+    let code: String
     // ジャンル名（例：和食、洋食など）
     let name: String
     // ジャンルのキャッチフレーズ
     let genreCatch: String
 
     enum CodingKeys: String, CodingKey {
+        case code
         case name
         case genreCatch = "catch" // "catch" というJSONキーを genreCatch にマッピング
     }
 }
 
-struct Photo: Decodable {
+struct Photo: Codable {
     let pc: Pc
 }
 
-struct Pc: Decodable {
+struct Pc: Codable {
     let l: String
 }
 
-struct Urls: Decodable {
+struct Urls: Codable {
     let pc: String
 }
-struct Budget: Decodable {
+struct Budget: Codable {
     let code: String // 例: "B001"
     let name: String // 例: "～1000"
 }
 
-enum MenuRangeType: CaseIterable {
+enum MenuRangeType: Int, CaseIterable {
     case range1
     case range2
     case range3

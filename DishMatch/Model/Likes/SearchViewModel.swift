@@ -7,8 +7,9 @@
 
 import Foundation
 import Combine
-import SwiftUICore
+import SwiftUI
 
+@MainActor
 final class SearchViewModel: ObservableObject {
     @Published var searchHistory: [String] = []
     @Published var searchResults: [Shop] = []

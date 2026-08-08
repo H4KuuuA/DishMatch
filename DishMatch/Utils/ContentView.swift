@@ -8,11 +8,48 @@
 import SwiftUI
 
 struct ContentView: View {
+    // アプリ設定画面で選んだ外観モードをアプリ全体に反映する
+    @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
+    @EnvironmentObject private var authService: AuthService
+
     var body: some View {
-        MainTabView()
+        Group {
+            switch authService.authState {
+            case .loading:
+                // Firebase が前回のログイン状態を復元するまでの短い待機
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color("WB").ignoresSafeArea())
+            case .signedOut:
+                AuthView()
+            case let .signedIn(uid):
+                // ログイン中のユーザーIDに紐づくデータを同期する。
+                // .id(uid) でユーザーが切り替わった際にメイン画面ツリーを作り直す
+                MainTabView(uid: uid)
+                    .id(uid)
+            }
+        }
+        .preferredColorScheme(appearanceMode.colorScheme)
+        // プロフィール(UserProfile.shared)は全体で共有する単一インスタンスのため、
+        // ログイン状態に応じてここで Firestore との同期を開始・停止する
+        .onChange(of: authService.authState) { _, newState in
+            syncUserProfile(with: newState)
+        }
+        .onAppear {
+            syncUserProfile(with: authService.authState)
+        }
+    }
+
+    private func syncUserProfile(with state: AuthState) {
+        if let uid = state.uid {
+            UserProfile.shared.bind(uid: uid)
+        } else {
+            UserProfile.shared.unbind()
+        }
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(AuthService())
 }

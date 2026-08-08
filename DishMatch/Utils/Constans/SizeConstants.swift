@@ -21,4 +21,9 @@ struct SizeConstants {
         static var cardHeight: CGFloat {
             UIScreen.main.bounds.height / 1.45
         }
+        /// カスタムタブバー（CustomTabBarView）がコンテンツの下に確保すべき高さ。
+        /// 各画面はNavigationStack/List/ScrollViewの内部で境界が作られ、
+        /// MainTabView側のsafeAreaInsetが伝播しないため、各画面側でも
+        /// この高さ分の余白を確保する必要がある。
+        static let customTabBarHeight: CGFloat = 70
 }

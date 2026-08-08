@@ -31,5 +31,26 @@ fastlane/screenshots/**/*.png
 fastlane/test_output
 iOSInjectionProject/
 
-DishMatch/APIkey.plist
+# === 機密ファイル(絶対にコミットしない) ===
+# APIキー(大文字小文字を正確に。case-sensitiveなFS/CIでも無視されるように)
+DishMatch/APIKey.plist
+APIKey.plist
+
+# Firebase設定(API_KEY / GCM_SENDER_ID を含む)
+GoogleService-Info.plist
+
+# 汎用シークレット
+*.env
+.env*
+!.env.example
+secrets.plist
+Secrets.plist
+*.pem
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
+
+# ローカル環境設定
+.claude/settings.local.json
 

@@ -14,6 +14,9 @@ struct CardView: View {
     @State private var xOffset: CGFloat = 0
     @State private var degrees: Double = 0
     @State private var isShowProfileModal = false
+    /// Likeが確定した瞬間だけ表示するハート。「いいね」であって「マッチ」ではないため、
+    /// フルスクリーン演出ではなくカード上でさりげなく主張する程度にとどめる
+    @State private var isShowLikeBurst = false
 
     let shop: Shop
 
@@ -53,6 +56,18 @@ struct CardView: View {
                 .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight * 0.14)
                 .padding(.horizontal)
         }
+        .overlay(alignment: .topTrailing) {
+            if isShowLikeBurst {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 6)
+                    .padding(20)
+                    .scaleEffect(isShowLikeBurst ? 1 : 0.4)
+                    .opacity(isShowLikeBurst ? 1 : 0)
+                    .allowsHitTesting(false)
+            }
+        }
         .fullScreenCover(isPresented: $isShowProfileModal) {
             StoreProfileView(shop: shop)
         }
@@ -84,12 +99,24 @@ private extension CardView {
     }
     /// Like
     private func swipeRight() {
+        triggerLikeBurst()
         withAnimation {
             xOffset = 500
             degrees = 12
         } completion: {
             restaurantViewModel.addToFavorites(shop) // 親から渡されたViewModelに追加
             restaurantViewModel.dismissShop(shop)
+        }
+    }
+
+    /// カード右上にハートを一瞬だけ浮かべて消す。「マッチ」ではなく「いいね」の
+    /// 軽いフィードバックなので、画面遷移や派手な演出は行わない
+    private func triggerLikeBurst() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            isShowLikeBurst = true
+        }
+        withAnimation(.easeIn(duration: 0.22).delay(0.18)) {
+            isShowLikeBurst = false
         }
     }
     /// None
@@ -141,7 +168,7 @@ private extension CardView {
 }
 
 #Preview {
-    let restaurantViewModel = RestaurantViewModel()
+    let restaurantViewModel = RestaurantViewModel(friendsViewModel: FriendsViewModel())
     restaurantViewModel.shopList = [MockShop.mockShop]
 
     return CardView(

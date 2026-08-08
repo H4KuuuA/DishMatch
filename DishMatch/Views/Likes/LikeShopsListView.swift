@@ -10,9 +10,11 @@ import SwiftUI
 struct LikeShopsListView: View {
     @ObservedObject var restaurantViewModel: RestaurantViewModel
     @ObservedObject var searchViewModel: SearchViewModel
-    
+
     @Binding var searchText: String
     @State private var refreshTrigger = false
+    @State private var selectedShop: Shop?
+    @State private var shopPendingDeletion: Shop?
 
     var displayedShops: [Shop] {
         searchText.isEmpty ? restaurantViewModel.favoriteShops : searchViewModel.searchResults
@@ -20,35 +22,89 @@ struct LikeShopsListView: View {
 
     var body: some View {
         NavigationView {
-            ScrollView {
+            Group {
                 if displayedShops.isEmpty {
-                    Text("該当するお店がありません")
-                        .foregroundColor(.gray)
-                        .font(.headline)
-                        .padding()
+                    emptyState
                 } else {
-                    LazyVStack(spacing: 16) {
+                    List {
                         ForEach(displayedShops, id: \.id) { shop in
-                            HStack(alignment: .top, spacing: 16) {
-                                LikeShopRow(shop: shop)
+                            LikeShopRow(shop: shop)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedShop = shop
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        shopPendingDeletion = shop
+                                    } label: {
+                                        Label("削除", systemImage: "trash")
+                                    }
+                                }
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color("WB"))
+                        }
+                        // カスタムタブバーの裏に最後の行が隠れないよう、余白用の空行を足す
+                        Color.clear
+                            .frame(height: SizeConstants.customTabBarHeight)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .refreshable {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation(.easeOut(duration: 0.5)) {
+                                refreshTrigger.toggle()
                             }
                         }
                     }
-
-                    .padding()
                 }
             }
             .background(Color("WB"))
             .navigationBarTitleDisplayMode(.inline)
-            .refreshable {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        refreshTrigger.toggle()
-                    }
-                }
-            }
         }
         .id(refreshTrigger)
+        .fullScreenCover(item: $selectedShop) { shop in
+            StoreProfileView(shop: shop)
+        }
+        .alert(
+            "お気に入りから削除しますか？",
+            isPresented: Binding(
+                get: { shopPendingDeletion != nil },
+                set: { isPresented in if !isPresented { shopPendingDeletion = nil } }
+            )
+        ) {
+            Button("削除", role: .destructive) {
+                if let shop = shopPendingDeletion {
+                    restaurantViewModel.removeFromFavorites(shop)
+                }
+                shopPendingDeletion = nil
+            }
+            Button("キャンセル", role: .cancel) {
+                shopPendingDeletion = nil
+            }
+        } message: {
+            if let shop = shopPendingDeletion {
+                Text("「\(shop.name)」をお気に入りから削除します。")
+            }
+        }
+    }
+
+    /// 友達一覧の空状態デザインに揃え、アイコン・見出し・説明文で構成する
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "heart.slash")
+                .font(.system(size: 44))
+                .foregroundStyle(.orange)
+            Text("該当するお店がありません")
+                .font(.headline)
+            Text("ホームでお店をLikeすると、ここに並びます。")
+                .font(.subheadline)
+                .foregroundStyle(.gray)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -98,8 +154,6 @@ private extension LikeShopsListView {
                 }
                 Spacer()
             }
-            .buttonStyle(PlainButtonStyle())
-            .contentShape(Rectangle())
             .background(Color("WB"))
             .cornerRadius(8)
             .onAppear {
@@ -114,13 +168,13 @@ private extension LikeShopsListView {
 }
 
 #Preview {
-    let restaurantViewModel = RestaurantViewModel()
+    let restaurantViewModel = RestaurantViewModel(friendsViewModel: FriendsViewModel())
     let searchViewModel = SearchViewModel(restaurantViewModel: restaurantViewModel)
-    
+
     restaurantViewModel.favoriteShops = [
         MockShop.mockShop,
         MockShop.mockShop
     ]
-    
+
     return LikeShopsListView(restaurantViewModel: restaurantViewModel, searchViewModel: searchViewModel, searchText: .constant(""))
 }

@@ -9,7 +9,15 @@
 import SwiftUI
 
 struct StoreProfileView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var currentImageIndex: Int = 0
+    @State private var dragOffset: CGFloat = 0
+    // 電話番号と評価をまとめて1回のGoogle Places APIリクエストで取得し、
+    // 下部の予約ボタン・評価表示の両方で共有する
+    @StateObject private var placeInfo = GooglePlaceInfoViewModel()
+
+    /// この値を超えて下にドラッグした状態で指を離すとdismissする
+    private let dismissThreshold: CGFloat = 140
 
     let shop: Shop // `Shop` を直接使用
 
@@ -68,7 +76,20 @@ struct StoreProfileView: View {
                             .foregroundStyle(Color("FC"))
                             .font(.caption)
                             .lineLimit(2)
-                            
+
+                            // 評価（Google Placesから取得。見つからない場合は表示しない）
+                            if let rating = placeInfo.rating {
+                                RatingStarsView(rating: rating, userRatingCount: placeInfo.userRatingCount)
+                            } else if placeInfo.isLoading {
+                                HStack(spacing: 4) {
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                    Text("評価を確認中…")
+                                        .font(.caption2)
+                                        .foregroundStyle(.gray)
+                                }
+                            }
+
                             Text("店舗情報  (詳細)")
                                 .foregroundStyle(Color("FC"))
                                 .fontWeight(.semibold)
@@ -118,11 +139,36 @@ struct StoreProfileView: View {
             // ReserveButtonViewは常に画面下部に固定
             VStack {
                 Spacer()
-                ReserveButtonView()
+                ReserveButtonView(shop: shop, placeInfo: placeInfo)
                     .edgesIgnoringSafeArea(.bottom)
             }
         }
         .background(Color("WB"))
+        .onAppear {
+            placeInfo.lookup(shopName: shop.name, address: shop.address)
+        }
+        // 上から下にスワイプした分だけViewを追従させ、指を離した時点で
+        // 一定距離を超えていればdismissする（fullScreenCoverは標準では
+        // 下スワイプで閉じられないため、独自にジェスチャーを実装している）
+        .offset(y: dragOffset)
+        // ScrollViewの内蔵ジェスチャーと共存させるためsimultaneousGestureを使う
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20)
+                .onChanged { value in
+                    guard value.translation.height > 0 else { return }
+                    dragOffset = value.translation.height
+                }
+                .onEnded { value in
+                    let isFastFlick = value.predictedEndTranslation.height > dismissThreshold * 2
+                    if value.translation.height > dismissThreshold || isFastFlick {
+                        dismiss()
+                    } else {
+                        withAnimation(.interactiveSpring()) {
+                            dragOffset = 0
+                        }
+                    }
+                }
+        )
     }
 }
 

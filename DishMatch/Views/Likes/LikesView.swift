@@ -45,7 +45,7 @@ struct LikesView: View {
 }
 
 #Preview {
-    let restaurantViewModel = RestaurantViewModel()
+    let restaurantViewModel = RestaurantViewModel(friendsViewModel: FriendsViewModel())
     let searchViewModel = SearchViewModel(restaurantViewModel: restaurantViewModel)
     let likesTabViewModel = LikesTabViewModel(restaurantViewModel: restaurantViewModel)
 

@@ -8,7 +8,7 @@
 //import SwiftUI
 //
 //struct RestaurantListView: View {
-//    @StateObject private var viewModel = RestaurantViewModel()
+//    @StateObject private var viewModel = RestaurantViewModel(friendsViewModel: FriendsViewModel())
 //    private var apiClient = APIClient()
 //    @State private var restaurants: [Shop] = []
 //    @State private var isLoading = false
