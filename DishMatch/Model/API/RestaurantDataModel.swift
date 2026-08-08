@@ -55,8 +55,49 @@ struct Shop: Codable,Identifiable,Equatable {
     let stationName: String
     // ディナー予算
     let budget: Budget?
-    // アクセス情報
+    // アクセス情報（モバイル向けの短い表記）
     let mobile_access: String
+
+    // MARK: - 詳細情報（HotPepper APIが返す拡張フィールド）
+    // 保存済みお気に入り（旧JSON）にはキーが無いため、後方互換のためすべて任意にしている。
+
+    /// 電車でのアクセス（`mobile_access` より詳しい説明）
+    var access: String? = nil
+    /// サブジャンル
+    var subGenre: SubGenre? = nil
+    /// 席数
+    var capacity: Int? = nil
+    /// 予算の補足コメント
+    var budgetMemo: String? = nil
+    /// その他・備考
+    var otherMemo: String? = nil
+    /// お店の詳細メモ
+    var shopDetailMemo: String? = nil
+
+    // こだわり・設備（値は "あり"/"なし"/"利用可"/"全面禁煙" などの文字列）
+    var freeDrink: String? = nil
+    var freeFood: String? = nil
+    var course: String? = nil
+    var privateRoom: String? = nil
+    var horigotatsu: String? = nil
+    var tatami: String? = nil
+    var card: String? = nil
+    var nonSmoking: String? = nil
+    var charter: String? = nil
+    var ktai: String? = nil
+    var parking: String? = nil
+    var barrierFree: String? = nil
+    var wifi: String? = nil
+    var lunch: String? = nil
+    var midnight: String? = nil
+    var child: String? = nil
+    var pet: String? = nil
+    var english: String? = nil
+    var wedding: String? = nil
+    var show: String? = nil
+    var karaoke: String? = nil
+    var band: String? = nil
+    var tv: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -74,10 +115,87 @@ struct Shop: Codable,Identifiable,Equatable {
         case budget
         // "mobile_access"というJSONキーを　mobile_access　にマッピング
         case mobile_access = "mobile_access"
+        case access
+        case subGenre = "sub_genre"
+        case capacity
+        case budgetMemo = "budget_memo"
+        case otherMemo = "other_memo"
+        case shopDetailMemo = "shop_detail_memo"
+        case freeDrink = "free_drink"
+        case freeFood = "free_food"
+        case course
+        case privateRoom = "private_room"
+        case horigotatsu
+        case tatami
+        case card
+        case nonSmoking = "non_smoking"
+        case charter
+        case ktai
+        case parking
+        case barrierFree = "barrier_free"
+        case wifi
+        case lunch
+        case midnight
+        case child
+        case pet
+        case english
+        case wedding
+        case show
+        case karaoke
+        case band
+        case tv
     }
     static func == (lhs: Shop, rhs: Shop) -> Bool {
            return lhs.id == rhs.id
        }
+}
+
+/// 表示用の「設備・特徴」1項目。
+struct ShopFeature: Identifiable {
+    let id = UUID()
+    let label: String
+    let systemImage: String
+}
+
+extension Shop {
+    /// 値が「利用可能・あり」を意味するかどうか（"なし"/"利用不可"/空 などを除外する）。
+    static func isAvailable(_ value: String?) -> Bool {
+        guard let value else { return false }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != "-" else { return false }
+        if trimmed.contains("なし") || trimmed.contains("不可") { return false }
+        return true
+    }
+
+    /// 詳細画面に表示する「設備・特徴」チップの一覧（利用可能なものだけ）。
+    /// 禁煙・カード・駐車場は具体的な文言が重要なため、ここではなく個別の行で表示する。
+    var features: [ShopFeature] {
+        let candidates: [(ParticularOption, String?)] = [
+            (.privateRoom, privateRoom),
+            (.freeDrink, freeDrink),
+            (.freeFood, freeFood),
+            (.course, course),
+            (.tatami, tatami),
+            (.horigotatsu, horigotatsu),
+            (.wifi, wifi),
+            (.barrierFree, barrierFree),
+            (.charter, charter),
+            (.ktai, ktai),
+            (.lunch, lunch),
+            (.midnight, midnight),
+            (.child, child),
+            (.pet, pet),
+            (.english, english),
+            (.tv, tv),
+            (.karaoke, karaoke),
+            (.band, band),
+            (.show, show),
+            (.wedding, wedding)
+        ]
+        return candidates.compactMap { option, value in
+            Shop.isAvailable(value) ? ShopFeature(label: option.label, systemImage: option.systemImage) : nil
+        }
+    }
 }
 
 struct Genre: Codable,Hashable {
@@ -109,6 +227,19 @@ struct Urls: Codable {
 struct Budget: Codable {
     let code: String // 例: "B001"
     let name: String // 例: "～1000"
+    var average: String? = nil // 平均予算の目安（例: "3000円"）
+
+    enum CodingKeys: String, CodingKey {
+        case code
+        case name
+        case average
+    }
+}
+
+/// サブジャンル（例: 居酒屋 > 海鮮居酒屋）。
+struct SubGenre: Codable {
+    let code: String
+    let name: String
 }
 
 enum MenuRangeType: Int, CaseIterable {
