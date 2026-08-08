@@ -249,4 +249,31 @@ final class FriendsViewModel: ObservableObject {
     func friendsMatching(shop: Shop) -> [Friend] {
         friends.filter { $0.likedShopIDs.contains(shop.id) }
     }
+
+    /// Likeした瞬間に、相手の最新の公開プロフィールをサーバーから取得して「同じお店をLike済みの友達」を返す。
+    ///
+    /// キャッシュ（`friends`のlikedShopIDs）は友達一覧の更新時にしか取り込まれないため、セッション中に
+    /// 相手がLikeしても即座には反映されない。ここで各友達の`publicProfiles`を都度取得することで、
+    /// Likeした時点の相手のLike状況でリアルタイムに判定する。取得失敗時はキャッシュにフォールバックする。
+    func friendsMatchingLive(shop: Shop) async -> [Friend] {
+        guard let publicProfileRepository, !friends.isEmpty else {
+            return friendsMatching(shop: shop)
+        }
+        var matched: [Friend] = []
+        for friend in friends {
+            do {
+                let profile = try await publicProfileRepository.fetchProfile(uid: friend.id, source: .server)
+                if Set(profile?.likedShopIDs ?? []).contains(shop.id) {
+                    matched.append(friend)
+                }
+            } catch {
+                // ネットワーク不良などで取得できない時は、取り込み済みのキャッシュで判定する
+                print("DEBUG: 友達の最新Like取得エラー \(error.localizedDescription)")
+                if friend.likedShopIDs.contains(shop.id) {
+                    matched.append(friend)
+                }
+            }
+        }
+        return matched
+    }
 }

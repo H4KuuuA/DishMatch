@@ -36,8 +36,9 @@ final class PublicProfileRepository: @unchecked Sendable {
     }
 
     /// 指定uidの公開プロフィールを取得する。
-    func fetchProfile(uid: String) async throws -> PublicProfile? {
-        let snapshot = try await db.collection("publicProfiles").document(uid).getDocument()
+    /// - Parameter source: 取得元。マッチ判定など最新値が必要な場面では `.server` を指定してサーバーから取得する。
+    func fetchProfile(uid: String, source: FirestoreSource = .default) async throws -> PublicProfile? {
+        let snapshot = try await db.collection("publicProfiles").document(uid).getDocument(source: source)
         return try? snapshot.data(as: PublicProfile.self)
     }
 
