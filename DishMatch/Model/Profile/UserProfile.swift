@@ -88,9 +88,14 @@ final class UserProfile: ObservableObject {
         myFriendCode = remoteFriendCode
         isApplyingRemote = false
 
-        // 既存ドキュメントに友達コードが無ければ発行する（didSet が書き込む）
+        // 既存ドキュメントに友達コードが無ければ発行する（didSet が persist→syncPublicProfile を呼ぶ）
         if myFriendCode.isEmpty {
             myFriendCode = Self.generateFriendCode()
+        } else if let uid {
+            // 友達コードが既にある既存ユーザーは didSet が発火しないため、
+            // 友達検索に必要な公開プロフィール（publicProfiles / friendCodes）をここで確実に同期する。
+            // これが無いと、この機能導入前から居るユーザーは友達に見つけてもらえない。
+            syncPublicProfile(uid: uid)
         }
     }
 

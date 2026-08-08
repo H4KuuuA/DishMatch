@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseAuth
+import FirebaseFirestore
 
 /// アプリ内で発生したエラーをユーザー向けの文言として表現する共通モデル。
 /// ErrorQueue/ErrorBannerViewを通じて表示する。
@@ -33,7 +34,46 @@ struct AppError: Identifiable, Equatable, Error {
         if let dataError = error as? DataError {
             return AppError(title: dataError.errorTitle, message: dataError.errorMessage)
         }
+        if let firestoreError = firestoreAppError(from: error, fallbackTitle: fallbackTitle) {
+            return firestoreError
+        }
         return AppError(title: fallbackTitle, message: "通信環境を確認して、もう一度お試しください。")
+    }
+
+    /// Firestore のエラーを判別して、原因に応じた文言に変換する。
+    /// Firestore のエラーでなければ nil を返す（呼び出し側で汎用フォールバックに任せる）。
+    private static func firestoreAppError(from error: Error, fallbackTitle: String) -> AppError? {
+        let nsError = error as NSError
+        guard nsError.domain == FirestoreErrorDomain,
+              let code = FirestoreErrorCode.Code(rawValue: nsError.code) else {
+            return nil
+        }
+
+        logFirestoreError(nsError, code: code)
+
+        switch code {
+        case .permissionDenied:
+            // ルール未反映・未ログインなど。ネットワーク不良と混同しない文言にする
+            return AppError(title: fallbackTitle, message: "この操作を実行する権限がありません。時間をおいて、それでも直らない場合はアプリを最新版に更新してお試しください。")
+        case .unauthenticated:
+            return AppError(title: fallbackTitle, message: "ログインの有効期限が切れている可能性があります。一度ログインし直してお試しください。")
+        case .unavailable, .deadlineExceeded:
+            return AppError(title: fallbackTitle, message: "通信環境を確認して、もう一度お試しください。")
+        default:
+            return AppError(title: fallbackTitle, message: "しばらく待ってから、もう一度お試しください。")
+        }
+    }
+
+    /// Firestore エラーの詳細を Xcode コンソールへ出力する（原因切り分け用）。"🔴[Firestore]" で絞り込める。
+    private static func logFirestoreError(_ nsError: NSError, code: FirestoreErrorCode.Code) {
+        #if DEBUG
+        print("""
+        🔴[Firestore] エラー発生
+          ├ code     : \(nsError.code) (\(code))
+          ├ message  : \(nsError.localizedDescription)
+          └ userInfo : \(nsError.userInfo)
+        """)
+        #endif
     }
 
     /// FirebaseAuth のエラーをユーザー向けの日本語文言へ変換する。
