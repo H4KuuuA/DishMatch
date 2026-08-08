@@ -12,6 +12,8 @@ struct MainTabView: View {
     @StateObject private var searchViewModel: SearchViewModel
     @StateObject private var likesTabViewModel: LikesTabViewModel
     @StateObject private var friendsViewModel: FriendsViewModel
+    /// チャット等の全画面表示中にタブバーを隠すための共有状態
+    @StateObject private var tabBarVisibility = TabBarVisibility()
     @State private var selectedTab: AppTab = .discover
 
     /// - Parameter uid: ログイン中ユーザーのID。各データを Firestore の `users/{uid}` 配下に同期する。
@@ -61,12 +63,17 @@ struct MainTabView: View {
                 }
             }
         }
+        // チャットなど全画面で使いたい画面（tabBarVisibility.isHidden = true）では
+        // タブバーとそのための余白ごと消して、コンテンツを画面いっぱいに使えるようにする
+        .environmentObject(tabBarVisibility)
         // オーバーレイではなくsafeAreaInsetで確保することで、リストや
         // ボタンなど各画面最下部の要素がタブバーの裏に隠れてタップ不能に
         // なるのを防ぐ（タブバー自体はガラス質感で背景が透けるので、
         // フローティングして見える見た目は保たれる）。
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            CustomTabBarView(selectedTab: $selectedTab)
+            if !tabBarVisibility.isHidden {
+                CustomTabBarView(selectedTab: $selectedTab)
+            }
         }
     }
 

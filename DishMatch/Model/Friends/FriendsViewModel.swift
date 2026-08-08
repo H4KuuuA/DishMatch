@@ -33,6 +33,8 @@ final class FriendsViewModel: ObservableObject {
     nonisolated(unsafe) private var incomingToken: RepositoryToken?
     nonisolated(unsafe) private var acceptedOutgoingToken: RepositoryToken?
     private var isObserving = false
+    /// refreshFriendProfiles の再入防止（購読更新と重なって多重に走るのを防ぐ）
+    private var isRefreshingProfiles = false
 
     /// - Parameters:
     ///   - repository: 友達データの保存先。ログイン中は`RemoteFriendRepository`。
@@ -59,7 +61,11 @@ final class FriendsViewModel: ObservableObject {
     /// リアルタイム購読を開始する。非対応リポジトリなら一度だけ取得する。
     private func startObserving() {
         let token = repository.observe { [weak self] friends in
-            Task { @MainActor in self?.friends = friends }
+            Task { @MainActor in
+                self?.friends = friends
+                // 友達の最新の「好きなジャンル」を取り込み直し、マッチ判定を最新に保つ
+                await self?.refreshFriendProfiles()
+            }
         }
         if let token {
             observationToken = token
@@ -88,6 +94,36 @@ final class FriendsViewModel: ObservableObject {
             lastError = AppError.from(error, fallbackTitle: "友達一覧を読み込めませんでした")
         }
         isLoading = false
+    }
+
+    /// 各友達の公開プロフィール（好きなジャンル・名前・アイコン）を取り込み直す。
+    ///
+    /// 友達の likedGenreCodes は承認時のスナップショットのままだと古くなり、相手が後から
+    /// お店をLikeしても「マッチ」が成立しない。ここで最新の publicProfiles を反映することで、
+    /// マッチ判定（friendsMatching）が相手の現在の好みに追従する。変化があった友達だけ保存する。
+    func refreshFriendProfiles() async {
+        guard let publicProfileRepository, !isRefreshingProfiles else { return }
+        isRefreshingProfiles = true
+        defer { isRefreshingProfiles = false }
+
+        for friend in friends {
+            do {
+                guard let profile = try await publicProfileRepository.fetchProfile(uid: friend.id) else { continue }
+                let updated = Friend(
+                    id: friend.id,
+                    name: profile.nickname,
+                    avatarEmoji: friend.avatarEmoji,
+                    avatarBase64: profile.avatarBase64,
+                    likedGenreCodes: Set(profile.likedGenreCodes)
+                )
+                // 変化があった時だけ保存（購読→保存の無限ループを防ぐ）
+                if updated != friend {
+                    try await repository.save(updated)
+                }
+            } catch {
+                print("DEBUG: 友達プロフィールの更新エラー \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - 友達申請

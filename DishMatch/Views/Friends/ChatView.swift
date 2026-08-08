@@ -13,6 +13,8 @@ struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
     /// お店共有ピッカー用に、自分のいいねしたお店を参照する
     @ObservedObject var restaurantViewModel: RestaurantViewModel
+    /// チャット表示中はタブバーを隠して画面いっぱいに使う
+    @EnvironmentObject private var tabBarVisibility: TabBarVisibility
 
     @State private var draft = ""
     @State private var isShowShopPicker = false
@@ -41,6 +43,9 @@ struct ChatView: View {
         .alert(item: $viewModel.lastError) { error in
             Alert(title: Text(error.title), message: Text(error.message), dismissButton: .default(Text("OK")))
         }
+        // チャット表示中はタブバーを隠し、離れたら元に戻す
+        .onAppear { tabBarVisibility.isHidden = true }
+        .onDisappear { tabBarVisibility.isHidden = false }
     }
 
     // MARK: - メッセージ一覧
