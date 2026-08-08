@@ -16,14 +16,23 @@ struct FriendsListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if friendsViewModel.friends.isEmpty {
+                if friendsViewModel.friends.isEmpty && friendsViewModel.incomingRequests.isEmpty {
                     emptyState
                 } else {
                     List {
-                        ForEach(friendsViewModel.friends) { friend in
-                            friendRow(friend)
+                        if !friendsViewModel.incomingRequests.isEmpty {
+                            Section("友達申請") {
+                                ForEach(friendsViewModel.incomingRequests) { request in
+                                    requestRow(request)
+                                }
+                            }
                         }
-                        .onDelete(perform: delete)
+                        Section(friendsViewModel.friends.isEmpty ? "" : "友達") {
+                            ForEach(friendsViewModel.friends) { friend in
+                                friendRow(friend)
+                            }
+                            .onDelete(perform: delete)
+                        }
                     }
                 }
             }
@@ -82,11 +91,7 @@ struct FriendsListView: View {
 
     private func friendRow(_ friend: Friend) -> some View {
         HStack(spacing: 12) {
-            Text(friend.avatarEmoji)
-                .font(.largeTitle)
-                .frame(width: 44, height: 44)
-                .background(Color.orange.opacity(0.15))
-                .clipShape(Circle())
+            avatar(imageData: friend.avatarImageData, emoji: friend.avatarEmoji)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(friend.name)
@@ -98,6 +103,64 @@ struct FriendsListView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+    }
+
+    /// 受信した友達申請の行。承認/拒否ボタンを持つ。
+    private func requestRow(_ request: FriendRequest) -> some View {
+        HStack(spacing: 12) {
+            avatar(imageData: nil, emoji: "🙂")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(request.fromNickname)
+                    .font(.headline)
+                Text("友達申請が届いています")
+                    .font(.caption)
+                    .foregroundStyle(.gray)
+            }
+            Spacer()
+
+            Button {
+                Task { await friendsViewModel.acceptRequest(request) }
+            } label: {
+                Text("承認")
+                    .font(.footnote.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Color.orange, in: Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                Task { await friendsViewModel.rejectRequest(request) }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.footnote.bold())
+                    .foregroundStyle(.gray)
+                    .padding(8)
+                    .background(Color.gray.opacity(0.15), in: Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// 友達アイコン。画像があれば画像を、なければ絵文字を丸型で表示する。
+    @ViewBuilder
+    private func avatar(imageData: Data?, emoji: String) -> some View {
+        Group {
+            if let imageData, let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Text(emoji)
+                    .font(.largeTitle)
+            }
+        }
+        .frame(width: 44, height: 44)
+        .background(Color.orange.opacity(0.15))
+        .clipShape(Circle())
     }
 
     private func delete(at offsets: IndexSet) {

@@ -65,6 +65,8 @@ final class RestaurantViewModel: ObservableObject {
             Task { @MainActor in
                 self?.favoriteShops = shops
                 self?.visitedShopIDs = visitedIDs
+                // 自分の「好きなジャンル」を公開プロフィールへ反映し、友達側のマッチ判定に使えるようにする
+                UserProfile.shared.syncLikedGenres(Set(shops.map { $0.genre.code }))
             }
         }
         favoritesToken = token

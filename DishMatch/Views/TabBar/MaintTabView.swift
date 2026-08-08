@@ -16,7 +16,12 @@ struct MainTabView: View {
 
     /// - Parameter uid: ログイン中ユーザーのID。各データを Firestore の `users/{uid}` 配下に同期する。
     init(uid: String) {
-        let friendsViewModel = FriendsViewModel(repository: RemoteFriendRepository(uid: uid))
+        let friendsViewModel = FriendsViewModel(
+            repository: RemoteFriendRepository(uid: uid),
+            friendRequestRepository: FriendRequestRepository(),
+            publicProfileRepository: PublicProfileRepository(),
+            myUid: uid
+        )
         let restaurantViewModel = RestaurantViewModel(
             friendsViewModel: friendsViewModel,
             favoritesRepository: RemoteFavoritesRepository(uid: uid)

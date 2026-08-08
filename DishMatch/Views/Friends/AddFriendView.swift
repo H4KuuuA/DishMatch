@@ -8,136 +8,106 @@
 import SwiftUI
 
 /// 友達を追加する画面。
-/// サーバーがまだ無いため、実際に相手のアカウントとやり取りすることはできない。
-/// 将来の「IDで友達を追加する」体験に近づけるため、自分のIDを共有する導線と
-/// 相手のIDを入力する導線を用意し、入力されたIDで仮の友達エントリを作成する形にしている。
-/// 名前やアイコンは相手本人が登録するものであり自分で代入すべきではないため入力欄を設けず、
-/// サーバー対応後に相手の実データへ自動で置き換わるまではIDをそのまま表示名として使う。
+/// LINEのように「自分のQR/IDを見せる」または「相手のIDを入力して申請を送る」ことで
+/// 双方向の友達関係を結ぶ。相手が承認すると、お互いの友達一覧に追加される。
 struct AddFriendView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var friendsViewModel: FriendsViewModel
     @ObservedObject private var userProfile = UserProfile.shared
-    @ObservedObject private var genreCatalog = GenreCatalog.shared
-    @StateObject private var errorQueue = ErrorQueue()
 
     @State private var enteredCode: String = ""
-    @State private var selectedGenreCodes: Set<String> = []
-
-    /// サーバー対応までの仮のアイコン。相手本人の情報が同期されるまでの共通プレースホルダー
-    private static let placeholderAvatarEmoji = "🙂"
+    @State private var isSending = false
+    @State private var infoMessage: String?
 
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    HStack {
-                        Text(userProfile.myFriendCode)
-                            .font(.title2.monospaced())
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color("FC"))
-                        Spacer()
-                        ShareLink(item: "DishMatchで友達になりましょう！\n私のID: \(userProfile.myFriendCode)") {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                    }
-                } header: {
-                    Text("自分のIDを共有する")
-                } footer: {
-                    Text("このIDを友達に伝えると、友達もあなたを追加できます。")
-                }
-
-                Section {
-                    TextField("例）ABC12345", text: $enteredCode)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                } header: {
-                    Text("友達のIDを入力")
-                } footer: {
-                    Text("現在はサーバー連携前のため、IDを入力すると仮の友達として登録されます。名前やアイコンは、サーバー対応後に相手が実際に登録した情報へ自動で置き換わります。")
-                }
-
-                Section {
-                    if genreCatalog.isLoading && genreCatalog.genres.isEmpty {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                    } else {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], alignment: .leading, spacing: 8) {
-                            ForEach(genreCatalog.genres) { genre in
-                                genreChip(genre)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                } header: {
-                    Text("好きなジャンル")
-                } footer: {
-                    Text("この友達が好きそうなジャンルを選んでください。同じジャンルのお店を自分がLikeすると、マッチが成立します。")
-                }
-            }
-            .overlay(alignment: .top) {
-                ErrorBannerView(errorQueue: errorQueue)
-                    .padding(.top, 8)
+                myCodeSection
+                addByCodeSection
             }
             .navigationTitle("友達を追加")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("キャンセル") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("追加") { save() }
-                        .fontWeight(.semibold)
-                        .disabled(enteredCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("閉じる") { dismiss() }
                 }
             }
-            .onAppear {
-                genreCatalog.loadIfNeeded()
-            }
-            .onChange(of: genreCatalog.lastError) { _, newValue in
-                if let newValue {
-                    errorQueue.report(newValue)
-                }
+            .alert("お知らせ", isPresented: .constant(infoMessage != nil), presenting: infoMessage) { _ in
+                Button("OK") { infoMessage = nil }
+            } message: { message in
+                Text(message)
             }
         }
     }
 
-    private func genreChip(_ genre: GenreOption) -> some View {
-        let isSelected = selectedGenreCodes.contains(genre.code)
-        return Button {
-            toggle(genre)
-        } label: {
-            Text(genre.name)
-                .font(.caption)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .frame(maxWidth: .infinity)
-                .background(isSelected ? Color.orange : Color.gray.opacity(0.15))
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .clipShape(Capsule())
+    /// 自分のQRコードとIDを見せて、相手に追加してもらうためのセクション。
+    private var myCodeSection: some View {
+        Section {
+            VStack(spacing: 16) {
+                QRCodeView(text: userProfile.myFriendCode)
+                    .frame(width: 180, height: 180)
+
+                HStack(spacing: 8) {
+                    Text(userProfile.myFriendCode)
+                        .font(.title2.monospaced())
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color("FC"))
+                    ShareLink(item: "DishMatchで友達になりましょう！\n私のID: \(userProfile.myFriendCode)") {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        } header: {
+            Text("自分のID")
+        } footer: {
+            Text("このQRコードまたはIDを友達に伝えると、友達があなたに申請を送れます。")
         }
-        .buttonStyle(.plain)
     }
 
-    private func toggle(_ genre: GenreOption) {
-        if selectedGenreCodes.contains(genre.code) {
-            selectedGenreCodes.remove(genre.code)
-        } else {
-            selectedGenreCodes.insert(genre.code)
+    /// 相手のIDを入力して友達申請を送るセクション。
+    private var addByCodeSection: some View {
+        Section {
+            TextField("例）ABC12345", text: $enteredCode)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+
+            Button {
+                sendRequest()
+            } label: {
+                HStack {
+                    Spacer()
+                    if isSending {
+                        ProgressView()
+                    } else {
+                        Text("申請を送る").fontWeight(.semibold)
+                    }
+                    Spacer()
+                }
+            }
+            .disabled(isSending || enteredCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } header: {
+            Text("友達のIDで申請")
+        } footer: {
+            Text("相手のIDを入力して申請を送ります。相手が承認すると、お互いの友達一覧に追加されます。")
         }
     }
 
-    private func save() {
-        let trimmedCode = enteredCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !trimmedCode.isEmpty else { return }
+    private func sendRequest() {
+        let code = enteredCode
+        isSending = true
         Task {
-            await friendsViewModel.addFriend(id: trimmedCode, name: trimmedCode, avatarEmoji: Self.placeholderAvatarEmoji, likedGenreCodes: selectedGenreCodes)
+            let success = await friendsViewModel.sendFriendRequest(toCode: code)
+            isSending = false
+            if success {
+                enteredCode = ""
+                infoMessage = "友達申請を送りました。相手が承認するのを待ちましょう。"
+            } else if let error = friendsViewModel.lastError {
+                // 失敗理由は lastError に入っているのでそれを見せる
+                infoMessage = error.message
+            }
         }
-        dismiss()
     }
 }
 

@@ -31,6 +31,12 @@ final class UserProfile: ObservableObject {
     /// リモートからの反映中は didSet の書き戻しを止め、無限ループを防ぐためのフラグ
     private var isApplyingRemote = false
 
+    /// 友達に公開するプロフィール（publicProfiles/friendCodes）の書き込み先
+    private let publicProfileRepository = PublicProfileRepository()
+    /// 公開プロフィールに載せる「自分の好きなジャンル」。RestaurantViewModelが
+    /// お気に入りの変化に応じて`syncLikedGenres`で更新する
+    private var likedGenreCodesCache: [String] = []
+
     private init() {}
 
     /// 指定ユーザーの Firestore ドキュメントとの同期を開始する。
@@ -108,6 +114,32 @@ final class UserProfile: ObservableObject {
                 print("DEBUG: プロフィール同期エラー \(error.localizedDescription)")
             }
         }
+
+        syncPublicProfile(uid: uid)
+    }
+
+    /// 友達に見せる公開プロフィール（publicProfiles/{uid}）と友達コード対応表を更新する。
+    private func syncPublicProfile(uid: String) {
+        guard !myFriendCode.isEmpty else { return }
+        var fields: [String: Any] = [
+            "nickname": nickname,
+            "friendCode": myFriendCode,
+            "likedGenreCodes": likedGenreCodesCache
+        ]
+        // 公開プロフィールにもアイコンを載せて友達側で表示できるようにする
+        fields["avatarBase64"] = avatarImageData?.base64EncodedString() ?? FieldValue.delete()
+        publicProfileRepository.upsert(uid: uid, fields: fields)
+        publicProfileRepository.registerFriendCode(myFriendCode, uid: uid)
+    }
+
+    /// 自分がLikeしたお店のジャンル集合を公開プロフィールへ反映する。
+    /// 友達側で「同じジャンルをLikeした時のマッチ判定」に使われる。
+    func syncLikedGenres(_ codes: Set<String>) {
+        let sorted = codes.sorted()
+        guard sorted != likedGenreCodesCache else { return }
+        likedGenreCodesCache = sorted
+        guard let uid else { return }
+        publicProfileRepository.upsert(uid: uid, fields: ["likedGenreCodes": sorted])
     }
 
     private func document(for uid: String) -> DocumentReference {

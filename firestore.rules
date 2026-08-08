@@ -1,15 +1,41 @@
 rules_version = '2';
 
 // DishMatch の Firestore セキュリティルール。
-// 各ユーザーは「自分の uid 配下（users/{uid}/... ）」だけを読み書きできる。
-// これにより、ログインしていない人・他人のデータへのアクセスを禁止する。
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // users/{uid} 本体（プロフィール）と、その配下すべて（favorites, friends など）
+    // 各ユーザーの本体データ（プロフィール／favorites／friends など）は本人のみ。
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null
                          && request.auth.uid == uid;
+    }
+
+    // 友達コード → uid の対応表。友達検索のためログインユーザーは読み取り可、
+    // 書き込みは自分のコードのみ（uid が自分と一致する時だけ）。
+    match /friendCodes/{code} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.data.uid == request.auth.uid;
+    }
+
+    // 友達に公開するプロフィール（ニックネーム／アイコン／好きなジャンル）。
+    // ログインユーザーは誰でも読めるが、書き込みは本人のみ。
+    match /publicProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid;
+    }
+
+    // 友達申請。当事者（送信者 fromUid・受信者 toUid）だけが読み書きできる。
+    match /friendRequests/{reqId} {
+      allow read: if request.auth != null
+                  && (resource.data.fromUid == request.auth.uid
+                      || resource.data.toUid == request.auth.uid);
+      allow create: if request.auth != null
+                    && request.resource.data.fromUid == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && (resource.data.fromUid == request.auth.uid
+                                || resource.data.toUid == request.auth.uid);
     }
 
     // 上記以外はすべて拒否（デフォルト deny）
