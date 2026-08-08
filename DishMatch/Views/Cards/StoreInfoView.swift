@@ -21,14 +21,10 @@ struct StoreInfoView: View {
 
                 Spacer()
 
-                // プロフィール表示ボタン
-                Button {
-                    isShowProfileModal.toggle()
-                } label: {
-                    Image(systemName: "arrow.up.circle")
-                        .fontWeight(.bold)
-                        .imageScale(.large)
-                }
+                // 店舗詳細へ遷移できることを示すアイコン（タップ判定は下のVStack全体に持たせている）
+                Image(systemName: "arrow.up.circle")
+                    .fontWeight(.bold)
+                    .imageScale(.large)
             }
             HStack {
                 Image(systemName: "fork.knife")
@@ -46,6 +42,10 @@ struct StoreInfoView: View {
             LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
         )
         .foregroundStyle(.white)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isShowProfileModal = true
+        }
     }
 }
 

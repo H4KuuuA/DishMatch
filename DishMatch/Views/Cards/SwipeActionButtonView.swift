@@ -47,7 +47,7 @@ struct SwipeActionButtonView: View {
 }
 
 #Preview {
-    let restaurantViewModel = RestaurantViewModel()
+    let restaurantViewModel = RestaurantViewModel(friendsViewModel: FriendsViewModel())
     restaurantViewModel.selectedSwipeAction = .like // プレビュー用の初期状態
     return SwipeActionButtonView(restaurantViewModel: restaurantViewModel)
 }

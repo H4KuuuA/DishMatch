@@ -8,7 +8,7 @@
 //import SwiftUI
 //
 //struct RestaurantListTestView: View {
-//    @StateObject private var viewModel = RestaurantViewModel()
+//    @StateObject private var viewModel = RestaurantViewModel(friendsViewModel: FriendsViewModel())
 //
 //    var body: some View {
 //        NavigationView {

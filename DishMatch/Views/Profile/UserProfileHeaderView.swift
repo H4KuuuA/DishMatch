@@ -8,10 +8,13 @@
 import SwiftUI
 
 struct UserProfileHeaderView: View {
+    @ObservedObject private var userProfile = UserProfile.shared
+    @State private var isShowEditProfile = false
+
     var body: some View {
         VStack {
             ZStack (alignment: .topTrailing){
-                Image("UserProfileImage")
+                avatarImage
                     .resizable()
                     .scaledToFill()
                     .frame(width: 120, height: 120)
@@ -23,7 +26,9 @@ struct UserProfileHeaderView: View {
                             .shadow(radius: 10)
                     }
                 
-                Button(action: {}) {
+                Button {
+                    isShowEditProfile = true
+                } label: {
                     Image(systemName: "pencil")
                         .imageScale(.small)
                         .foregroundStyle(.gray)
@@ -32,19 +37,37 @@ struct UserProfileHeaderView: View {
                                 .fill(Color("BG"))
                                 .frame(width: 32, height: 32)
                         }
-                    
+
                 }
                 .offset(x: -8, y: 10)
-                
+
             }
             .padding()
-            Text("ご飯探検隊")
+            Text(userProfile.nickname)
                 .foregroundStyle(Color("FC"))
                 .font(.title2)
                 .fontWeight(.bold)
+
+            if !userProfile.bio.isEmpty {
+                Text(userProfile.bio)
+                    .foregroundStyle(.gray)
+                    .font(.subheadline)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 240)
+        .sheet(isPresented: $isShowEditProfile) {
+            EditUserProfileView()
+        }
+    }
+
+    private var avatarImage: Image {
+        if let data = userProfile.avatarImageData, let uiImage = UIImage(data: data) {
+            Image(uiImage: uiImage)
+        } else {
+            Image("UserProfileImage")
+        }
     }
 }
 

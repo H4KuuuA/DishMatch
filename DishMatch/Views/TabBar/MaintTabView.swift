@@ -8,48 +8,74 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var restaurantViewModel = RestaurantViewModel()
+    @StateObject private var restaurantViewModel: RestaurantViewModel
     @StateObject private var searchViewModel: SearchViewModel
     @StateObject private var likesTabViewModel: LikesTabViewModel
+    @StateObject private var friendsViewModel: FriendsViewModel
+    @State private var selectedTab: AppTab = .discover
 
-    init() {
-        let restaurantViewModel = RestaurantViewModel()
+    /// - Parameter uid: ログイン中ユーザーのID。各データを Firestore の `users/{uid}` 配下に同期する。
+    init(uid: String) {
+        let friendsViewModel = FriendsViewModel(repository: RemoteFriendRepository(uid: uid))
+        let restaurantViewModel = RestaurantViewModel(
+            friendsViewModel: friendsViewModel,
+            favoritesRepository: RemoteFavoritesRepository(uid: uid)
+        )
+        _friendsViewModel = StateObject(wrappedValue: friendsViewModel)
         _restaurantViewModel = StateObject(wrappedValue: restaurantViewModel)
         _searchViewModel = StateObject(wrappedValue: SearchViewModel(restaurantViewModel: restaurantViewModel))
         _likesTabViewModel = StateObject(wrappedValue: LikesTabViewModel(restaurantViewModel: restaurantViewModel))
     }
 
     var body: some View {
-        TabView {
-            CardStackView(restaurantViewModel: restaurantViewModel)
-                .tabItem {
-                    Image(systemName: "fork.knife")
-                }
-                .tag(0)
+        ZStack {
+            Color("BG").ignoresSafeArea()
 
-            LikesView(
-                searchViewModel: searchViewModel,  
-                likesTabViewModel: likesTabViewModel,
-                restaurantViewModel: restaurantViewModel
-            )
-            .tabItem {
-                Image(systemName: "heart.fill")
+            // 標準のTabViewは使わず、各タブの中身をZStackで重ねてopacityで
+            // 出し分ける。こうすることでタブを行き来してもスクロール位置や
+            // 入力途中のテキストなどの状態がリセットされない。
+            ZStack {
+                tabContent(for: .discover) {
+                    CardStackView(restaurantViewModel: restaurantViewModel)
+                }
+
+                tabContent(for: .likes) {
+                    LikesView(
+                        searchViewModel: searchViewModel,
+                        likesTabViewModel: likesTabViewModel,
+                        restaurantViewModel: restaurantViewModel
+                    )
+                }
+
+                tabContent(for: .friends) {
+                    FriendsListView(friendsViewModel: friendsViewModel)
+                }
+
+                tabContent(for: .profile) {
+                    UserProfileView(restaurantViewModel: restaurantViewModel)
+                }
             }
-            .tag(1)
-
-            UserProfileView()
-                .tabItem {
-                    Image(systemName: "person")
-                }
-                .tag(2)
         }
-        .tint(.primary)
-        .background(Color("BG"))
-        .edgesIgnoringSafeArea(.all)
+        // オーバーレイではなくsafeAreaInsetで確保することで、リストや
+        // ボタンなど各画面最下部の要素がタブバーの裏に隠れてタップ不能に
+        // なるのを防ぐ（タブバー自体はガラス質感で背景が透けるので、
+        // フローティングして見える見た目は保たれる）。
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            CustomTabBarView(selectedTab: $selectedTab)
+        }
+    }
+
+    /// 選択中のタブだけを表示・操作可能にしつつ、非選択タブはビューツリーに残して状態を保持する
+    @ViewBuilder
+    private func tabContent<Content: View>(for tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
+        let isSelected = selectedTab == tab
+        content()
+            .opacity(isSelected ? 1 : 0)
+            .allowsHitTesting(isSelected)
+            .accessibilityHidden(!isSelected)
     }
 }
 
 #Preview {
-    MainTabView()
+    MainTabView(uid: "preview-uid")
 }
-

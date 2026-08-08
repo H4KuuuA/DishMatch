@@ -13,7 +13,7 @@
 //    @Published var buttonSwipeAction: SwipeAction? // スワイプアクションを保持
 //    @Published var likedShops: [Shop] = []
 //    
-//    private let restaurantViewModel = RestaurantViewModel()
+//    private let restaurantViewModel = RestaurantViewModel(friendsViewModel: FriendsViewModel())
 //    
 //    init() {
 //        //        Task {

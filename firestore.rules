@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// DishMatch の Firestore セキュリティルール。
+// 各ユーザーは「自分の uid 配下（users/{uid}/... ）」だけを読み書きできる。
+// これにより、ログインしていない人・他人のデータへのアクセスを禁止する。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // users/{uid} 本体（プロフィール）と、その配下すべて（favorites, friends など）
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid;
+    }
+
+    // 上記以外はすべて拒否（デフォルト deny）
+  }
+}
