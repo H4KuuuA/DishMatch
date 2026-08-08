@@ -16,6 +16,9 @@ struct PublicProfile: Codable, Equatable {
     var friendCode: String
     var avatarBase64: String?
     var likedGenreCodes: [String]
+    /// この人がLikeしたお店のID一覧。マッチ判定に使う。
+    /// 既存ドキュメントには無い場合があるためデコードに失敗しないよう optional にしている。
+    var likedShopIDs: [String]?
     var updatedAt: Double?
 }
 

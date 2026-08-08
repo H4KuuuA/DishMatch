@@ -114,7 +114,8 @@ final class FriendsViewModel: ObservableObject {
                     name: profile.nickname,
                     avatarEmoji: friend.avatarEmoji,
                     avatarBase64: profile.avatarBase64,
-                    likedGenreCodes: Set(profile.likedGenreCodes)
+                    likedGenreCodes: Set(profile.likedGenreCodes),
+                    likedShopIDs: Set(profile.likedShopIDs ?? [])
                 )
                 // 変化があった時だけ保存（購読→保存の無限ループを防ぐ）
                 if updated != friend {
@@ -209,7 +210,8 @@ final class FriendsViewModel: ObservableObject {
             id: uid,
             name: profile?.nickname ?? fallbackName,
             avatarBase64: profile?.avatarBase64,
-            likedGenreCodes: Set(profile?.likedGenreCodes ?? [])
+            likedGenreCodes: Set(profile?.likedGenreCodes ?? []),
+            likedShopIDs: Set(profile?.likedShopIDs ?? [])
         )
     }
 
@@ -241,9 +243,10 @@ final class FriendsViewModel: ObservableObject {
         }
     }
 
-    /// 指定したお店のジャンルを好みとして登録している友達を返す（複数いれば全員）。
-    /// Likeした瞬間の「友達とのマッチ」判定に使う
+    /// 指定したお店を「同じくLikeしている」友達を返す（複数いれば全員）。
+    /// Likeした瞬間の「友達とのマッチ」判定に使う。ジャンルではなく同一のお店（shop.id）で判定するため、
+    /// 友達が同じお店をLikeしている時だけマッチが成立する。
     func friendsMatching(shop: Shop) -> [Friend] {
-        friends.filter { $0.likedGenreCodes.contains(shop.genre.code) }
+        friends.filter { $0.likedShopIDs.contains(shop.id) }
     }
 }
