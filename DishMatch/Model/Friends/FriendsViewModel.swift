@@ -25,6 +25,9 @@ final class FriendsViewModel: ObservableObject {
     /// 自分のuid。ログイン中のみ非nil。
     private let myUid: String?
 
+    /// 自分のuid（チャット画面など外部からの参照用）。未ログイン時は nil。
+    var currentUid: String? { myUid }
+
     /// 各リアルタイム購読の解除トークン。deinit（nonisolated）から解除するため nonisolated(unsafe)。
     nonisolated(unsafe) private var observationToken: RepositoryToken?
     nonisolated(unsafe) private var incomingToken: RepositoryToken?
