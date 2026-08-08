@@ -53,7 +53,7 @@ struct MainTabView: View {
                 }
 
                 tabContent(for: .friends) {
-                    FriendsListView(friendsViewModel: friendsViewModel)
+                    FriendsListView(friendsViewModel: friendsViewModel, restaurantViewModel: restaurantViewModel)
                 }
 
                 tabContent(for: .profile) {

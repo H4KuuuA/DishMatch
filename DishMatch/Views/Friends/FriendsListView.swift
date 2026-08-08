@@ -10,6 +10,8 @@ import SwiftUI
 /// 登録した友達の一覧画面。ここから新規登録もできる。
 struct FriendsListView: View {
     @ObservedObject var friendsViewModel: FriendsViewModel
+    /// チャットのお店共有ピッカーで自分のいいねしたお店を参照するために持つ
+    @ObservedObject var restaurantViewModel: RestaurantViewModel
     @StateObject private var errorQueue = ErrorQueue()
     @State private var isShowAddFriend = false
 
@@ -29,7 +31,15 @@ struct FriendsListView: View {
                         }
                         Section(friendsViewModel.friends.isEmpty ? "" : "友達") {
                             ForEach(friendsViewModel.friends) { friend in
-                                friendRow(friend)
+                                if let myUid = friendsViewModel.currentUid {
+                                    NavigationLink {
+                                        ChatView(friend: friend, myUid: myUid, restaurantViewModel: restaurantViewModel)
+                                    } label: {
+                                        friendRow(friend)
+                                    }
+                                } else {
+                                    friendRow(friend)
+                                }
                             }
                             .onDelete(perform: delete)
                         }
@@ -172,5 +182,9 @@ struct FriendsListView: View {
 }
 
 #Preview {
-    FriendsListView(friendsViewModel: FriendsViewModel())
+    let friendsViewModel = FriendsViewModel()
+    return FriendsListView(
+        friendsViewModel: friendsViewModel,
+        restaurantViewModel: RestaurantViewModel(friendsViewModel: friendsViewModel)
+    )
 }
