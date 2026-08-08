@@ -1,0 +1,17 @@
+{
+  "name": "dishmatch-firestore-security-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DishMatch の Firestore セキュリティルールに対する脆弱性検証テスト",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project dishmatch-security-test 'vitest run'",
+    "test:watch": "firebase emulators:exec --only firestore --project dishmatch-security-test 'vitest'"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0",
+    "firebase-tools": "^13.0.0",
+    "vitest": "^2.0.0"
+  }
+}
