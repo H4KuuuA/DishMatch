@@ -23,17 +23,21 @@ struct DiscoverSettingsButtonView: View {
                 Text("絞り込み")
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 16)
-            .background(Color.orange, in: Capsule())
-            .shadow(color: .orange.opacity(0.25), radius: 6, x: 0, y: 3)
+            .foregroundStyle(.primary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 18)
+            // マテリアル（iOS26 では Liquid Glass）によるガラス風の背景。
+            .liquidGlassBackground(in: Capsule(), tint: .orange)
         }
         .buttonStyle(.plain)
     }
 }
 
 #Preview {
-    DiscoverSettingsButtonView(isShowDiscoverSettings: .constant(false))
-        .padding()
+    ZStack {
+        LinearGradient(colors: [.orange, .pink, .purple],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+            .ignoresSafeArea()
+        DiscoverSettingsButtonView(isShowDiscoverSettings: .constant(false))
+    }
 }
