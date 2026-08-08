@@ -93,16 +93,10 @@ struct FriendMatchCelebrationView: View {
     }
 
     private var shopPhoto: some View {
-        AsyncImage(url: URL(string: match.shop.photo.pc.l)) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().scaledToFill()
-            default:
-                Color.white.opacity(0.3)
-            }
-        }
-        .frame(width: 120, height: 120)
-        .clipShape(Circle())
+        CachedShopImage(urlString: match.shop.photo.pc.l)
+            .scaledToFill()
+            .frame(width: 120, height: 120)
+            .clipShape(Circle())
         .overlay(Circle().stroke(.white, lineWidth: 4))
         .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
     }

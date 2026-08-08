@@ -23,30 +23,12 @@ struct CardView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             ZStack(alignment: .top) {
-                AsyncImage(url: URL(string: shop.photo.pc.l)) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                            .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
-                            .background(Color.gray.opacity(0.3))
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
-                            .clipped()
-                    case .failure:
-                        Image(systemName: "photo")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
-                            .clipped()
-                            .background(Color.gray.opacity(0.3))
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
-                .overlay {
+                CachedShopImage(urlString: shop.photo.pc.l)
+                    .scaledToFill()
+                    .frame(width: SizeConstants.cardWidth, height: SizeConstants.cardHeight)
+                    .clipped()
+                    .background(Color.gray.opacity(0.3))
+                    .overlay {
                     ImageScrollingOverlay(currentImageIndex: $currentImageIndex, imagecount: imageCount)
                 }
                 CardImageIndicatorView(currentImageIndex: currentImageIndex, imageCount: imageCount)

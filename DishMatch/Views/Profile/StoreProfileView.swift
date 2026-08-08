@@ -26,32 +26,11 @@ struct StoreProfileView: View {
             VStack {
                 ScrollView {
                     VStack {
-                        AsyncImage(url: URL(string: shop.photo.pc.l)) { phase in
-                            switch phase {
-                            case .empty:
-                                // ローディング中のプレースホルダー
-                                ProgressView()
-                                    .frame(maxWidth: .infinity, maxHeight: 500)
-                                    .background(Color.gray.opacity(0.3))
-                            case .success(let image):
-                                // 正常に画像が取得できた場合
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(maxWidth: .infinity, maxHeight: 500)
-                                    .clipped()
-                            case .failure:
-                                // エラー時の代替画像
-                                Image(systemName: "photo")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(maxWidth: .infinity, maxHeight: 500)
-                                    .background(Color.gray.opacity(0.3))
-                                    .clipped()
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
+                        CachedShopImage(urlString: shop.photo.pc.l)
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxWidth: .infinity, maxHeight: 500)
+                            .background(Color.gray.opacity(0.3))
+                            .clipped()
 
                         // 店舗情報
                         VStack(alignment: .leading, spacing: 8) {

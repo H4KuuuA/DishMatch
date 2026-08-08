@@ -127,13 +127,10 @@ struct ChatView: View {
             shopToShow = shop
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                AsyncImage(url: URL(string: shop.photo.pc.l)) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.gray.opacity(0.2)
-                }
-                .frame(width: 220, height: 130)
-                .clipped()
+                CachedShopImage(urlString: shop.photo.pc.l)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 220, height: 130)
+                    .clipped()
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(shop.name)
@@ -218,13 +215,10 @@ struct ChatView: View {
                             isShowShopPicker = false
                         } label: {
                             HStack(spacing: 12) {
-                                AsyncImage(url: URL(string: shop.photo.pc.l)) { image in
-                                    image.resizable().aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Color.gray.opacity(0.2)
-                                }
-                                .frame(width: 56, height: 56)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                CachedShopImage(urlString: shop.photo.pc.l)
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 56, height: 56)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(shop.name).font(.subheadline.bold()).lineLimit(1)
