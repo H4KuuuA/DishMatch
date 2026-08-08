@@ -30,6 +30,9 @@ final class UserProfile: ObservableObject {
     private var listener: ListenerRegistration?
     /// リモートからの反映中は didSet の書き戻しを止め、無限ループを防ぐためのフラグ
     private var isApplyingRemote = false
+    /// 新規登録画面で入力された初期プロフィール。サインアップ直後の初回ドキュメント作成時に反映する。
+    /// bind() が呼ぶ unbind() では消さず、apply() で使い切ったら nil に戻す。
+    private var pendingRegistration: (nickname: String, avatarImageData: Data?)?
 
     /// 友達に公開するプロフィール（publicProfiles/friendCodes）の書き込み先
     private let publicProfileRepository = PublicProfileRepository()
@@ -38,6 +41,18 @@ final class UserProfile: ObservableObject {
     private var likedGenreCodesCache: [String] = []
 
     private init() {}
+
+    /// 新規登録画面で入力した名前・アイコンを、サインアップ直後の初回同期で反映させるために事前登録する。
+    /// `bind`（＝Firestore同期開始）より前に呼ぶ想定。空名は既定値にフォールバックする。
+    func stageRegistration(nickname: String, avatarImageData: Data?) {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        pendingRegistration = (trimmed.isEmpty ? Self.defaultNickname : trimmed, avatarImageData)
+    }
+
+    /// 事前登録した初期プロフィールを破棄する（サインアップ失敗時などに使う）。
+    func clearStagedRegistration() {
+        pendingRegistration = nil
+    }
 
     /// 指定ユーザーの Firestore ドキュメントとの同期を開始する。
     func bind(uid: String) {
@@ -70,11 +85,23 @@ final class UserProfile: ObservableObject {
         guard let snapshot else { return }
 
         // まだ存在しない（新規ユーザー）ならドキュメントを作成する。
-        // 友達コードの設定が didSet 経由で persist() を呼び、既定値とともに書き込まれる。
+        // 友達コードの設定が didSet 経由で persist() を呼び、（下で反映した名前・アイコンと）
+        // ともに書き込まれる。
         guard snapshot.exists, let data = snapshot.data() else {
+            // 新規登録画面で名前・アイコンを入力していれば、既定値の代わりに初期値として反映する。
+            if let pending = pendingRegistration {
+                isApplyingRemote = true
+                nickname = pending.nickname
+                avatarImageData = pending.avatarImageData
+                isApplyingRemote = false
+                pendingRegistration = nil
+            }
             myFriendCode = Self.generateFriendCode()
             return
         }
+
+        // 既存ドキュメントに同期するので、使われなかった事前登録は破棄する（別アカウントへの混入防止）。
+        pendingRegistration = nil
 
         isApplyingRemote = true
         nickname = data["nickname"] as? String ?? Self.defaultNickname
