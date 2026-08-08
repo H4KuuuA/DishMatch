@@ -39,6 +39,9 @@ final class UserProfile: ObservableObject {
     /// 公開プロフィールに載せる「自分の好きなジャンル」。RestaurantViewModelが
     /// お気に入りの変化に応じて`syncLikedGenres`で更新する
     private var likedGenreCodesCache: [String] = []
+    /// 公開プロフィールに載せる「自分がLikeしたお店のID」。マッチ判定に使う。
+    /// RestaurantViewModelが`syncLikedShopIDs`で更新する
+    private var likedShopIDsCache: [String] = []
 
     private init() {}
 
@@ -156,7 +159,8 @@ final class UserProfile: ObservableObject {
         var fields: [String: Any] = [
             "nickname": nickname,
             "friendCode": myFriendCode,
-            "likedGenreCodes": likedGenreCodesCache
+            "likedGenreCodes": likedGenreCodesCache,
+            "likedShopIDs": likedShopIDsCache
         ]
         // 公開プロフィールにもアイコンを載せて友達側で表示できるようにする
         fields["avatarBase64"] = avatarImageData?.base64EncodedString() ?? FieldValue.delete()
@@ -172,6 +176,16 @@ final class UserProfile: ObservableObject {
         likedGenreCodesCache = sorted
         guard let uid else { return }
         publicProfileRepository.upsert(uid: uid, fields: ["likedGenreCodes": sorted])
+    }
+
+    /// 自分がLikeしたお店のID集合を公開プロフィールへ反映する。
+    /// 友達側で「同じお店をLikeした時のマッチ判定」に使われる。
+    func syncLikedShopIDs(_ ids: Set<String>) {
+        let sorted = ids.sorted()
+        guard sorted != likedShopIDsCache else { return }
+        likedShopIDsCache = sorted
+        guard let uid else { return }
+        publicProfileRepository.upsert(uid: uid, fields: ["likedShopIDs": sorted])
     }
 
     private func document(for uid: String) -> DocumentReference {
