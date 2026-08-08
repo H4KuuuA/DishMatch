@@ -232,10 +232,14 @@ final class RestaurantViewModel: ObservableObject {
             try await favoritesRepository?.add(shop)
         }
 
-        // マッチ演出は即座に出したいので同期を待たずに判定する
-        let matchingFriends = friendsViewModel.friendsMatching(shop: shop)
-        if !matchingFriends.isEmpty {
-            friendMatch = FriendMatch(shop: shop, friends: matchingFriends)
+        // マッチ判定はLikeした瞬間に相手の最新Like状況をサーバーから取得して行う（リアルタイム）。
+        // キャッシュ頼みだとセッション中に相手がLikeした分を取りこぼすため、都度取得する。
+        Task { [weak self] in
+            guard let self else { return }
+            let matchingFriends = await self.friendsViewModel.friendsMatchingLive(shop: shop)
+            if !matchingFriends.isEmpty {
+                self.friendMatch = FriendMatch(shop: shop, friends: matchingFriends)
+            }
         }
     }
 
