@@ -61,6 +61,10 @@ struct AppError: Identifiable, Equatable, Error {
             message = "通信環境を確認して、もう一度お試しください。"
         case .tooManyRequests:
             message = "試行回数が多すぎます。しばらく待ってからお試しください。"
+        case .operationNotAllowed:
+            // メール/パスワードのサインイン方法が Firebase コンソールで無効な場合など。
+            // 設定不備なので「待てば直る」類ではない。
+            message = "現在この登録方法は利用できません。設定をご確認ください。"
         default:
             message = "しばらく待ってから、もう一度お試しください。"
         }
