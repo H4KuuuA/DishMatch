@@ -57,8 +57,9 @@ struct ChatView: View {
                     if viewModel.messages.isEmpty {
                         emptyState
                     }
-                    ForEach(viewModel.messages) { message in
-                        bubble(message).id(message.id)
+                    ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
+                        let previous = index > 0 ? viewModel.messages[index - 1] : nil
+                        messageRow(message, previous: previous).id(message.id)
                     }
                     // 自動スクロールの着地点
                     Color.clear.frame(height: 1).id(bottomAnchorID)
@@ -94,24 +95,65 @@ struct ChatView: View {
         .padding(.top, 60)
     }
 
+    /// 1メッセージ分の行。相手のメッセージには（分が変わるたびに）アイコンを、
+    /// 両者とも分が変わるたびに送信時刻を表示する。
     @ViewBuilder
-    private func bubble(_ message: ChatMessage) -> some View {
+    private func messageRow(_ message: ChatMessage, previous: ChatMessage?) -> some View {
         let mine = viewModel.isMine(message)
-        HStack {
-            if mine { Spacer(minLength: 48) }
+        // 直前のメッセージから「分」または送信者が変わったら、アイコン・時刻を表示する
+        let showsMeta = previous == nil
+            || minuteKey(message) != minuteKey(previous!)
+            || message.senderUid != previous!.senderUid
 
-            switch message.kind {
-            case .text:
-                textBubble(message.text ?? "", mine: mine)
-            case .shop:
-                if let shop = message.shop {
-                    shopBubble(shop, mine: mine)
+        HStack(alignment: .bottom, spacing: 6) {
+            if mine {
+                Spacer(minLength: 48)
+                if showsMeta { timeLabel(message) }
+                bubbleContent(message, mine: mine)
+            } else {
+                // 相手のアイコン列。分が変わった時だけ表示し、それ以外は同じ幅の余白で揃える
+                if showsMeta {
+                    FriendAvatarView(imageData: viewModel.friend.avatarImageData, emoji: viewModel.friend.avatarEmoji, size: 32)
+                } else {
+                    Color.clear.frame(width: 32, height: 1)
                 }
+                bubbleContent(message, mine: mine)
+                if showsMeta { timeLabel(message) }
+                Spacer(minLength: 48)
             }
-
-            if !mine { Spacer(minLength: 48) }
         }
     }
+
+    @ViewBuilder
+    private func bubbleContent(_ message: ChatMessage, mine: Bool) -> some View {
+        switch message.kind {
+        case .text:
+            textBubble(message.text ?? "", mine: mine)
+        case .shop:
+            if let shop = message.shop {
+                shopBubble(shop, mine: mine)
+            }
+        }
+    }
+
+    /// 送信時刻（HH:mm）のラベル。
+    private func timeLabel(_ message: ChatMessage) -> some View {
+        Text(Self.timeFormatter.string(from: Date(timeIntervalSince1970: message.createdAt)))
+            .font(.caption2)
+            .foregroundStyle(.gray)
+    }
+
+    /// 「分」単位のグループ判定に使うキー。
+    private func minuteKey(_ message: ChatMessage) -> Int {
+        Int(message.createdAt / 60)
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 
     private func textBubble(_ text: String, mine: Bool) -> some View {
         Text(text)

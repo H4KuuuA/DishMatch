@@ -16,6 +16,8 @@ struct FriendMatchCelebrationView: View {
     var onViewDetail: () -> Void
 
     @State private var isContentVisible = false
+    /// 自分のアイコンを表示するために参照する
+    @ObservedObject private var userProfile = UserProfile.shared
 
     private var friend: Friend { match.friends[0] }
 
@@ -69,27 +71,37 @@ struct FriendMatchCelebrationView: View {
         }
     }
 
-    /// 自分と友達のアバターでお店の写真を挟み、二人の意思が重なったことを示す
+    /// 自分と友達のアバターでお店の写真を挟み、二人の意思が重なったことを示す。
+    /// アイコンは設定済みの画像があればそれを表示する（自分＝UserProfile、相手＝Friend）。
     private var matchVisual: some View {
         HStack(spacing: -18) {
-            avatarCircle(text: "🙂")
+            avatarCircle(imageData: userProfile.avatarImageData, emoji: "🙂")
                 .zIndex(0)
             shopPhoto
                 .zIndex(1)
-            avatarCircle(text: friend.avatarEmoji)
+            avatarCircle(imageData: friend.avatarImageData, emoji: friend.avatarEmoji)
                 .zIndex(0)
         }
         .scaleEffect(isContentVisible ? 1 : 0.6)
         .opacity(isContentVisible ? 1 : 0)
     }
 
-    private func avatarCircle(text: String) -> some View {
-        Text(text)
-            .font(.system(size: 30))
-            .frame(width: 60, height: 60)
-            .background(.white, in: Circle())
-            .overlay(Circle().stroke(.white, lineWidth: 3))
-            .shadow(color: .black.opacity(0.2), radius: 8)
+    private func avatarCircle(imageData: Data?, emoji: String) -> some View {
+        Group {
+            if let imageData, let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Text(emoji)
+                    .font(.system(size: 30))
+            }
+        }
+        .frame(width: 60, height: 60)
+        .background(.white, in: Circle())
+        .clipShape(Circle())
+        .overlay(Circle().stroke(.white, lineWidth: 3))
+        .shadow(color: .black.opacity(0.2), radius: 8)
     }
 
     private var shopPhoto: some View {
