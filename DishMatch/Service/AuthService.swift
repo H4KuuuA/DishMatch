@@ -48,6 +48,7 @@ final class AuthService: ObservableObject {
         do {
             try await Auth.auth().createUser(withEmail: email, password: password)
         } catch {
+            Self.logAuthError(error, operation: "signUp")
             throw AppError.fromAuth(error, fallbackTitle: "新規登録に失敗しました")
         }
     }
@@ -57,6 +58,7 @@ final class AuthService: ObservableObject {
         do {
             try await Auth.auth().signIn(withEmail: email, password: password)
         } catch {
+            Self.logAuthError(error, operation: "signIn")
             throw AppError.fromAuth(error, fallbackTitle: "ログインに失敗しました")
         }
     }
@@ -66,6 +68,7 @@ final class AuthService: ObservableObject {
         do {
             try await Auth.auth().sendPasswordReset(withEmail: email)
         } catch {
+            Self.logAuthError(error, operation: "sendPasswordReset")
             throw AppError.fromAuth(error, fallbackTitle: "メールを送信できませんでした")
         }
     }
@@ -75,7 +78,30 @@ final class AuthService: ObservableObject {
         do {
             try Auth.auth().signOut()
         } catch {
+            Self.logAuthError(error, operation: "signOut")
             throw AppError.fromAuth(error, fallbackTitle: "ログアウトに失敗しました")
         }
+    }
+
+    // MARK: - Debug
+
+    /// FirebaseAuth のエラーの中身をXcodeコンソールへ詳細出力する（原因切り分け用）。
+    /// 原因が特定できたら、このメソッドと各呼び出しは削除してよい。
+    /// Xcodeコンソールで "🔴[Auth]" で絞り込むと該当ログだけ見られる。
+    private static func logAuthError(_ error: Error, operation: String) {
+        #if DEBUG
+        let ns = error as NSError
+        let codeName = AuthErrorCode(rawValue: ns.code).map { String(describing: $0) } ?? "不明(未定義コード)"
+        print("""
+        🔴[Auth] 認証エラー発生
+          ├ operation : \(operation)
+          ├ domain    : \(ns.domain)
+          ├ code      : \(ns.code)
+          ├ codeName  : \(codeName)
+          ├ message   : \(ns.localizedDescription)
+          ├ underlying: \(String(describing: ns.userInfo[NSUnderlyingErrorKey]))
+          └ userInfo  : \(ns.userInfo)
+        """)
+        #endif
     }
 }
