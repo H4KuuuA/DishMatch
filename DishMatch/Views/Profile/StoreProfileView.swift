@@ -21,6 +21,41 @@ struct StoreProfileView: View {
 
     let shop: Shop // `Shop` を直接使用
 
+    /// ジャンル（サブジャンルがあれば併記）
+    private var genreDetail: String {
+        if let sub = shop.subGenre, !sub.name.isEmpty {
+            return "\(shop.genre.name) / \(sub.name)"
+        }
+        return shop.genre.name
+    }
+
+    /// 表示する備考（値があるものだけ）
+    private var shopMemos: [(title: String, body: String)] {
+        let candidates: [(String, String?)] = [
+            ("予算の補足", shop.budgetMemo),
+            ("お店より", shop.shopDetailMemo),
+            ("その他", shop.otherMemo)
+        ]
+        return candidates.compactMap { title, value in
+            guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+            return (title, value)
+        }
+    }
+
+    /// 設備・特徴のチップ
+    private func featureChip(_ feature: ShopFeature) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: feature.systemImage)
+                .font(.caption2)
+            Text(feature.label)
+                .font(.caption)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.orange.opacity(0.12), in: Capsule())
+        .foregroundStyle(Color("FC"))
+    }
+
     var body: some View {
         ZStack {
             VStack {
@@ -69,25 +104,65 @@ struct StoreProfileView: View {
                                 }
                             }
 
+                            if !shop.shopCatch.isEmpty {
+                                Text(shop.shopCatch)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 8)
+                            }
+
                             Text("店舗情報  (詳細)")
                                 .foregroundStyle(Color("FC"))
                                 .fontWeight(.semibold)
                                 .padding(.top, 20)
                             Spacer()
                             InfoRow(title: "住所", detail: shop.address)
-                            
+
+                            if let access = shop.access, !access.isEmpty {
+                                Divider()
+                                InfoRow(title: "アクセス", detail: access)
+                            }
+
                             Divider()
                             InfoRow(title: "最寄りの駅", detail: "\(shop.stationName)駅")
-                            
+
+                            Divider()
+                            InfoRow(title: "ジャンル", detail: genreDetail)
+
                             Divider()
                             InfoRow(title: "営業時間", detail: shop.open)
-                                
+
                             Divider()
                             InfoRow(title: "定休日", detail: shop.close)
-                                
+
                             Divider()
                             InfoRow(title: "予算", detail: shop.budget?.name ?? "不明")
-                                
+
+                            if let average = shop.budget?.average, !average.isEmpty {
+                                Divider()
+                                InfoRow(title: "平均予算", detail: average)
+                            }
+
+                            if let capacity = shop.capacity, capacity > 0 {
+                                Divider()
+                                InfoRow(title: "席数", detail: "\(capacity)席")
+                            }
+
+                            if let nonSmoking = shop.nonSmoking, !nonSmoking.isEmpty {
+                                Divider()
+                                InfoRow(title: "禁煙・喫煙", detail: nonSmoking)
+                            }
+
+                            if let card = shop.card, !card.isEmpty {
+                                Divider()
+                                InfoRow(title: "カード", detail: card)
+                            }
+
+                            if let parking = shop.parking, !parking.isEmpty {
+                                Divider()
+                                InfoRow(title: "駐車場", detail: parking)
+                            }
+
                             Divider()
                             // HPリンク
                             if let url = URL(string: shop.urls.pc) {
@@ -103,6 +178,42 @@ struct StoreProfileView: View {
                                 }
                                 .padding(.vertical, 6)
                             }
+
+                            // 設備・特徴（利用可能なこだわり条件をチップで一覧表示）
+                            if !shop.features.isEmpty {
+                                Text("設備・特徴")
+                                    .foregroundStyle(Color("FC"))
+                                    .fontWeight(.semibold)
+                                    .padding(.top, 20)
+                                FlowLayout(spacing: 8) {
+                                    ForEach(shop.features) { feature in
+                                        featureChip(feature)
+                                    }
+                                }
+                                .padding(.top, 4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+
+                            // 備考（予算補足・その他メモ）
+                            let memos = shopMemos
+                            if !memos.isEmpty {
+                                Text("備考")
+                                    .foregroundStyle(Color("FC"))
+                                    .fontWeight(.semibold)
+                                    .padding(.top, 20)
+                                ForEach(memos, id: \.title) { memo in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(memo.title)
+                                            .font(.subheadline.bold())
+                                            .foregroundColor(Color("FC"))
+                                        Text(memo.body)
+                                            .font(.subheadline)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 4)
+                                }
+                            }
+
                             Spacer()
                             Spacer()
                         }
@@ -111,7 +222,7 @@ struct StoreProfileView: View {
                         .cornerRadius(40)
                         .offset(y: -35)
 
-                        
+
                     }
                 }
             }
