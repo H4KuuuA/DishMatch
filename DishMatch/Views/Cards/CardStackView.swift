@@ -25,18 +25,24 @@ struct CardStackView: View {
                 header
 
                 if restaurantViewModel.isLoading {
+                    // 中身が小さいと VStack が親の中央に配置され、header(NavigationBar相当)まで
+                    // 中央に降りてしまう。残り領域いっぱいに広げて header を上部に固定する。
                     ProgressView("データを読み込んでいます...")
                         .font(.title2)
                         .padding()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if restaurantViewModel.shopList.isEmpty {
-                    Text("表示する店舗がありません")
-                        .foregroundColor(.gray)
-                        .font(.title3)
-                        .padding()
                     // こだわり条件を絞り込みすぎて0件になった場合、設定をやり直す
-                    // 手段が無いと詰んでしまうが、絞り込みボタンは常に左上のツールバーに
+                    // 手段が無いと詰んでしまうが、絞り込みボタンは常に上部ヘッダーに
                     // 表示されているのでここではResetボタンのみでよい
-                    ResetCardButtonView(restaurantViewModel: restaurantViewModel, viewID: $viewID)
+                    VStack(spacing: 16) {
+                        Text("表示する店舗がありません")
+                            .foregroundColor(.gray)
+                            .font(.title3)
+                            .padding()
+                        ResetCardButtonView(restaurantViewModel: restaurantViewModel, viewID: $viewID)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ZStack {
                         ForEach(Array(restaurantViewModel.shopList.enumerated()), id: \.element.id) { index, shop in
