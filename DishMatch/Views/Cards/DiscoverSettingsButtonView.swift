@@ -18,16 +18,13 @@ struct DiscoverSettingsButtonView: View {
         Button {
             isShowDiscoverSettings.toggle()
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "slider.horizontal.3")
-                Text("絞り込み")
-            }
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 18)
-            // マテリアル（iOS26 では Liquid Glass）によるガラス風の背景。
-            .liquidGlassBackground(in: Capsule(), tint: .orange)
+            Image(systemName: "slider.horizontal.3")
+                .font(.title3.weight(.semibold))
+                // アイコンはオレンジ。背景は透明感のあるガラス＋オレンジtint
+                .foregroundStyle(.orange)
+                .padding(12)
+                // マテリアル（iOS26 では Liquid Glass）によるガラス風の背景。
+                .liquidGlassBackground(in: Capsule(), tint: .orange)
         }
         .buttonStyle(.plain)
     }
