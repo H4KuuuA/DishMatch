@@ -158,6 +158,7 @@ struct DiscoverySettingsView: View {
                 errorQueue.report(newValue)
             }
         }
+        .tint(.orange)
     }
 
     /// 「完了」が押された時の処理。
