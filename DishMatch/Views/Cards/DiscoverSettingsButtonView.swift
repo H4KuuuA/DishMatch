@@ -20,11 +20,11 @@ struct DiscoverSettingsButtonView: View {
         } label: {
             Image(systemName: "slider.horizontal.3")
                 .font(.title3.weight(.semibold))
-                // アイコンはオレンジ。背景は透明感のあるガラス＋オレンジtint
+                // アイコンだけオレンジ。背景は色を付けず、無色の（透明感のある）ガラスにする
                 .foregroundStyle(.orange)
                 .padding(12)
-                // マテリアル（iOS26 では Liquid Glass）によるガラス風の背景。
-                .liquidGlassBackground(in: Capsule(), tint: .orange)
+                // マテリアル（iOS26 では Liquid Glass）によるガラス風の背景。tintは無し（無色）。
+                .liquidGlassBackground(in: Capsule())
         }
         .buttonStyle(.plain)
     }
