@@ -117,6 +117,23 @@ final class RecommendationEngine: ObservableObject {
         今日の気分は特に指定がないので、いいね履歴の傾向から、この人に響く検索条件を提案してください。
         """
     }
+
+    /// プロンプトが既知の「シチュエーション語」を含むなら、その場面向けの既定こだわり（優先度順）を返す。
+    /// 小型モデルの themeKind 誤判定に依存しないための**決定的ガード**。該当しなければ nil。
+    /// 「デート」等が確実にジャンル横断＋こだわりで出るようにする。
+    static func situationParticulars(for userPrompt: String?) -> [ParticularOption]? {
+        guard let text = userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        let lowered = text.lowercased()
+        func has(_ words: [String]) -> Bool { words.contains { lowered.contains($0.lowercased()) } }
+
+        if has(["デート", "date"]) { return [.privateRoom, .nightView, .course] }
+        if has(["記念日", "誕生日", "お祝い", "アニバーサリー", "anniversary"]) { return [.privateRoom, .nightView, .course] }
+        if has(["接待", "会食"]) { return [.privateRoom, .course, .tatami] }
+        if has(["女子会"]) { return [.privateRoom, .freeDrink] }
+        if has(["合コン", "飲み会", "宴会"]) { return [.privateRoom, .freeDrink, .course] }
+        if has(["子連れ", "子供", "こども", "家族", "ファミリー"]) { return [.child, .tatami] }
+        return nil
+    }
 }
 
 private extension String {
@@ -144,13 +161,29 @@ extension RecommendationEngine {
         let prompt = Self.buildPrompt(userPrompt: userPrompt, likedShops: likedShops)
         do {
             let response = try await session.respond(to: prompt, generating: AIRecommendation.self)
-            let criteria = response.content.toCriteria()
+            var criteria = response.content.toCriteria()
+
+            // 決定的ガード: プロンプトが既知のシチュエーション語（デート等）を含むなら、
+            // モデルの themeKind 判定に関わらずシチュエーション扱いに上書きする。
+            var overrodeSituation = false
+            if let situationParts = Self.situationParticulars(for: userPrompt) {
+                overrodeSituation = true
+                if let keyword = criteria.keyword, !keyword.isEmpty {
+                    // 「焼肉デート」等: 料理指定は残しつつ、場面のこだわりを重ねる。
+                    criteria = RecommendationCriteria(genreCodes: criteria.genreCodes, isBroad: criteria.isBroad, keyword: keyword, particulars: situationParts, reason: criteria.reason)
+                } else {
+                    // 「デート」等: ジャンルで絞らず、こだわりで出す。
+                    criteria = RecommendationCriteria(genreCodes: [], isBroad: false, keyword: nil, particulars: situationParts, reason: criteria.reason)
+                }
+            }
+
             #if DEBUG
             // 実機のXcodeコンソールで、AIへの入力（いいね傾向を含むプロンプト）と生成物を確認する。
             let likedGenres = likedShops.map { $0.genre.name }
             print("🔮[AIおすすめ] いいね件数=\(likedShops.count) ジャンル=\(likedGenres)")
             print("🔮[AIおすすめ] 入力プロンプト:\n\(prompt)")
-            print("🔮[AIおすすめ] 生成: genreCodes=\(criteria.genreCodes) broad=\(criteria.isBroad) keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
+            print("🔮[AIおすすめ] モデル生成: themeKind=\(response.content.themeKind) primary=\(response.content.primaryGenre) breadth=\(response.content.breadth) keyword=\(response.content.keyword) vibes=\(response.content.vibes)")
+            print("🔮[AIおすすめ] 採用条件(シチュエーション上書き=\(overrodeSituation)): genreCodes=\(criteria.genreCodes) broad=\(criteria.isBroad) keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
             #endif
             return criteria
         } catch {
