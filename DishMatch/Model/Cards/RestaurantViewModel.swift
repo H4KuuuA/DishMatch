@@ -16,10 +16,14 @@ struct AppliedFilter {
     var keyword: String?
     /// keywordをAPIの絞り込みに使うか。件数が足りないと段階的にfalseへ降格する。
     var keywordIsFilter: Bool
-    /// こだわり条件（最小限）。件数が足りないと最初に外す。
+    /// こだわり条件（APIハード絞り込み）。件数が足りないと最初に外す。
+    /// シチュエーションでは多様性維持のため「最重要1つ」だけをここに入れる。
     var particulars: Set<ParticularOption>
     /// broad（複数ジャンルをprimary厚めに加重マージ）か、specific（先頭ジャンルのみ）か。
     var isBroad: Bool
+    /// 並び順(ランク)で効かせるこだわり。APIでは絞り込まず、これらを多く満たす店を上位へ寄せる。
+    /// シチュエーションで「個室でハード絞り込み＋コース等はランク」を実現するために使う。
+    var rankParticulars: [ParticularOption] = []
 
     /// 絞り込みなしのニュートラル（初回・通常ディスカバリー）。
     static let neutral = AppliedFilter(genreCodes: [], keyword: nil, keywordIsFilter: false, particulars: [], isBroad: false)
@@ -241,14 +245,27 @@ final class RestaurantViewModel: ObservableObject {
         if codes.isEmpty && particulars.isEmpty { return [.neutral] }
 
         var ladder: [AppliedFilter] = []
-        // こだわりを多い→少ないの順に段を作る（末尾＝重要度の低いものから外す）。
+
+        if codes.isEmpty {
+            // シチュエーション（デート等）: 全ジャンル横断。ジャンルの多様性を保つため、
+            // ハード絞り込みは「最重要こだわり1つ」だけにし、残りは並び順(ランク)で効かせる。
+            // 個室ANDコースのように複数をハード絞りすると和食・居酒屋に偏るのを防ぐ。
+            if let top = particulars.first {
+                ladder.append(AppliedFilter(genreCodes: [], keyword: nil, keywordIsFilter: false, particulars: [top], isBroad: false, rankParticulars: particulars))
+            }
+            // 緩め: こだわりのハード絞り無し（全ジャンル）。ランクは維持して適した店を上位に。
+            ladder.append(AppliedFilter(genreCodes: [], keyword: nil, keywordIsFilter: false, particulars: [], isBroad: false, rankParticulars: particulars))
+            return ladder
+        }
+
+        // 料理テーマ: ジャンル集合固定。こだわりは補助で多い→少ない（末尾から）緩める。keywordは並び順のみ。
         var keep = particulars.count
         while keep > 0 {
             let subset = Set(particulars.prefix(keep))
             ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: subset, isBroad: isBroad))
             keep -= 1
         }
-        // 最後: こだわり無し（集合のみ／シチュエーションは全ジャンル）＝件数を最大化。
+        // 最後: こだわり無し（集合のみ）＝件数を最大化。
         ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: [], isBroad: isBroad))
         return ladder
     }
@@ -301,15 +318,15 @@ final class RestaurantViewModel: ObservableObject {
             let shops = result.results.shop.filter { self.passesBudgetCeiling($0) }
             perGenre.append((code, shops))
         }
-        return mergeByPreference(perGenre: perGenre, keyword: filter.keyword, isBroad: filter.isBroad)
+        return mergeByPreference(perGenre: perGenre, keyword: filter.keyword, isBroad: filter.isBroad, rankParticulars: filter.rankParticulars)
     }
 
     /// ジャンル別の結果を1本のデッキ（関連度の高い順）にまとめる。
     /// specific: 先頭ジャンルのみ。keyword一致店を上位・非一致店を下位に。
-    /// broad: primary厚め（primaryを多め）の加重インターリーブ＋各ジャンル内でkeyword一致を優先。
-    private func mergeByPreference(perGenre: [(code: String, shops: [Shop])], keyword: String?, isBroad: Bool) -> [Shop] {
-        // 各ジャンル内で keyword 一致を上位へ寄せる。
-        let ordered = perGenre.map { (code: $0.code, shops: orderByKeyword($0.shops, keyword: keyword)) }
+    /// broad: primary厚め（primaryを多め）の加重インターリーブ＋各ジャンル内でランク優先。
+    private func mergeByPreference(perGenre: [(code: String, shops: [Shop])], keyword: String?, isBroad: Bool, rankParticulars: [ParticularOption]) -> [Shop] {
+        // 各ジャンル内で keyword一致・こだわり充足の多い店を上位へ寄せる。
+        let ordered = perGenre.map { (code: $0.code, shops: orderDeck($0.shops, keyword: keyword, rankParticulars: rankParticulars)) }
 
         var seen = Set<String>()
         var deck: [Shop] = []
@@ -342,18 +359,57 @@ final class RestaurantViewModel: ObservableObject {
         return deck
     }
 
-    /// keyword一致店を先頭に寄せた並びを返す（順序は安定）。keywordが空ならそのまま。
-    private func orderByKeyword(_ shops: [Shop], keyword: String?) -> [Shop] {
-        guard let raw = keyword?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return shops }
-        let matched = shops.filter { shopMatchesKeyword($0, raw) }
-        let rest = shops.filter { !shopMatchesKeyword($0, raw) }
-        return matched + rest
+    /// keyword一致・こだわり充足の多い店を上位へ寄せた並びを返す（順序は安定）。
+    /// keyword一致は強く（+10）、rankParticularsは1つ充足ごとに+1で加点する。
+    private func orderDeck(_ shops: [Shop], keyword: String?, rankParticulars: [ParticularOption]) -> [Shop] {
+        let trimmed = keyword?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasKeyword = !(trimmed ?? "").isEmpty
+        // 並べ替える必要が無ければそのまま返す。
+        if !hasKeyword && rankParticulars.isEmpty { return shops }
+
+        func score(_ shop: Shop) -> Int {
+            var total = 0
+            if hasKeyword, let trimmed, shopMatchesKeyword(shop, trimmed) { total += 10 }
+            for option in rankParticulars where shopHasParticular(shop, option) { total += 1 }
+            return total
+        }
+        // enumerated の offset を使って同点は元順を保つ（安定ソート）。
+        return shops.enumerated()
+            .sorted { lhs, rhs in
+                let ls = score(lhs.element), rs = score(rhs.element)
+                if ls != rs { return ls > rs }
+                return lhs.offset < rhs.offset
+            }
+            .map { $0.element }
     }
 
     /// 店名・ジャンル名・キャッチにkeywordが含まれるか（並び順用の緩い判定）。
     private func shopMatchesKeyword(_ shop: Shop, _ keyword: String) -> Bool {
         let haystack = [shop.name, shop.genre.name, shop.shopCatch]
         return haystack.contains { $0.localizedCaseInsensitiveContains(keyword) }
+    }
+
+    /// その店が指定のこだわりを満たすか（Shopが公開しているフィールドのみ判定。夜景等の非公開項目は常にfalse）。
+    private func shopHasParticular(_ shop: Shop, _ option: ParticularOption) -> Bool {
+        let value: String?
+        switch option {
+        case .privateRoom: value = shop.privateRoom
+        case .course: value = shop.course
+        case .freeDrink: value = shop.freeDrink
+        case .freeFood: value = shop.freeFood
+        case .tatami: value = shop.tatami
+        case .horigotatsu: value = shop.horigotatsu
+        case .charter: value = shop.charter
+        case .child: value = shop.child
+        case .nonSmoking: value = shop.nonSmoking
+        case .lunch: value = shop.lunch
+        case .parking: value = shop.parking
+        case .card: value = shop.card
+        case .wifi: value = shop.wifi
+        default: value = nil // API絞り込みは可能だがShopに個別フィールドが無い項目（夜景・カクテル等）
+        }
+        guard let value, !value.isEmpty else { return false }
+        return value != "なし"
     }
 
     /// 「予算 ≤ 選択」フィルタ。トグル「それ以下も含める」がON かつ 予算選択ありの時のみ効く。

@@ -81,12 +81,13 @@ final class RecommendationEngine: ObservableObject {
     "特定の料理"なら "specific"、「がっつり」「軽く飲みたい」など"漠然"なら "broad"。broad の時だけ \
     secondaryGenre を最大2つ足す（specificは「なし」）。keyword は具体的な料理・食材の短い日本語だけ（無ければ空文字）。
     ・themeKind が "シチュエーション" の時: **ジャンルでは絞らない**。primaryGenre は適当でよく、代わりに vibes に\
-    その場面に合う"こだわり"を重要な順に最大3つ入れる（例 デート=個室,夜景,コース）。keyword は空文字。
+    その場面に合う"こだわり"を重要な順に最大3つ入れる。**先頭には個室のように幅広い店にある条件を置く**\
+    （夜景など珍しい条件は先頭にしない）。keyword は空文字。
     ・vibes は重要な順に並べる。無ければ空配列。
     例:
     ・「コーヒー飲みたい」→ themeKind=料理 / primary=カフェ・スイーツ / breadth=specific / keyword=コーヒー
     ・「がっつり食べたい」→ themeKind=料理 / primary=焼肉・ホルモン / breadth=broad / secondary=居酒屋,ラーメン
-    ・「デート」→ themeKind=シチュエーション / vibes=個室,夜景,コース / keyword=空
+    ・「デート」→ themeKind=シチュエーション / vibes=個室,コース / keyword=空
     ・「女子会」→ themeKind=シチュエーション / vibes=個室,飲み放題
     ・「接待」→ themeKind=シチュエーション / vibes=個室,コース,座敷
     """
@@ -126,8 +127,10 @@ final class RecommendationEngine: ObservableObject {
         let lowered = text.lowercased()
         func has(_ words: [String]) -> Bool { words.contains { lowered.contains($0.lowercased()) } }
 
-        if has(["デート", "date"]) { return [.privateRoom, .nightView, .course] }
-        if has(["記念日", "誕生日", "お祝い", "アニバーサリー", "anniversary"]) { return [.privateRoom, .nightView, .course] }
+        // 先頭＝ハード絞り込みに使う最重要こだわり。広く使える「個室」等を先頭に置く
+        // （夜景は多くの店で情報が無く絞ると激減するため既定には入れない）。残りは並び順で効く。
+        if has(["デート", "date"]) { return [.privateRoom, .course] }
+        if has(["記念日", "誕生日", "お祝い", "アニバーサリー", "anniversary"]) { return [.privateRoom, .course] }
         if has(["接待", "会食"]) { return [.privateRoom, .course, .tatami] }
         if has(["女子会"]) { return [.privateRoom, .freeDrink] }
         if has(["合コン", "飲み会", "宴会"]) { return [.privateRoom, .freeDrink, .course] }
