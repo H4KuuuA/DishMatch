@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct CardView: View {
     @ObservedObject var restaurantViewModel: RestaurantViewModel
@@ -14,6 +15,8 @@ struct CardView: View {
     @State private var xOffset: CGFloat = 0
     @State private var degrees: Double = 0
     @State private var isShowProfileModal = false
+    /// しきい値（Like/None が確定する境界）を越えているか。越えた瞬間だけ軽い振動を出すために持つ
+    @State private var didCrossThreshold = false
     /// Likeが確定した瞬間だけ表示するハート。「いいね」であって「マッチ」ではないため、
     /// フルスクリーン演出ではなくカード上でさりげなく主張する程度にとどめる
     @State private var isShowLikeBurst = false
@@ -78,9 +81,17 @@ private extension CardView {
     private func returnToCenter() {
         xOffset = 0
         degrees = 0
+        didCrossThreshold = false
     }
+    /// 指定スタイルの触覚フィードバックを鳴らす
+    private func playHaptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.impactOccurred()
+    }
+
     /// Like
     private func swipeRight() {
+        playHaptic(.medium)
         triggerLikeBurst()
         withAnimation {
             xOffset = 500
@@ -103,6 +114,7 @@ private extension CardView {
     }
     /// None
     private func swipeLeft() {
+        playHaptic(.medium)
         withAnimation {
             xOffset = -500
             degrees = -12
@@ -132,6 +144,15 @@ private extension CardView {
     func onDragChanged(_ value: _ChangedGesture<DragGesture>.Value) {
         xOffset = value.translation.width
         degrees = Double(value.translation.width / 25)
+
+        // Like/None が確定するしきい値を越えた瞬間だけ軽い振動でフィードバックする
+        let isPastThreshold = abs(value.translation.width) >= CGFloat(SizeConstants.screenCutOff)
+        if isPastThreshold != didCrossThreshold {
+            didCrossThreshold = isPastThreshold
+            if isPastThreshold {
+                playHaptic(.light)
+            }
+        }
     }
 
     func onDragEnded(_ value: _ChangedGesture<DragGesture>.Value) {
