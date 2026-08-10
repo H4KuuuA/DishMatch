@@ -14,8 +14,7 @@ struct LikesSearchView: View {
     @Binding var searchText: String
     
     @FocusState private var isTextFieldFocused: Bool
-    
-    @State private var keyboardOffset: CGFloat = 0
+
     var body: some View {
         VStack(spacing: 0) {
             // 検索バー + キャンセルボタン
@@ -109,23 +108,13 @@ struct LikesSearchView: View {
             .listStyle(PlainListStyle()) // セル間の余白を減らす
             .background(Color("WB"))
             .tint(.orange)
-            .padding(.bottom, keyboardOffset)
         }
         .onAppear {
+            // キーボード回避は SwiftUI 標準に任せる。
+            // 手動で keyboardOffset を padding にかけると自動回避と二重にオフセットされ、
+            // 履歴などのリスト内容が画面外へ押し出されて一瞬で消えるため行わない。
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isTextFieldFocused = true
-            }
-            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { notification in
-                if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                    withAnimation {
-                        self.keyboardOffset = keyboardFrame.height - 40 // キーボードの高さ分、リストを上げる
-                    }
-                }
-            }
-            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
-                withAnimation {
-                    self.keyboardOffset = 0
-                }
             }
         }
     }
