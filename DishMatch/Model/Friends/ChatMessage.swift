@@ -35,3 +35,10 @@ struct ChatMessage: Identifiable, Codable, Equatable {
         }
     }
 }
+
+/// 友達一覧（インスタDM風）で各友達の最終メッセージを表示するためのサマリー。
+/// `chats/{chatId}` に保存された `lastMessageText` / `lastMessageAt` をそのまま持つ。
+struct ChatSummary: Equatable {
+    var lastMessageText: String?
+    var lastMessageAt: Double?
+}
