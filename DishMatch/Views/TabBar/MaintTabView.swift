@@ -15,6 +15,9 @@ struct MainTabView: View {
     /// チャット等の全画面表示中にタブバーを隠すための共有状態
     @StateObject private var tabBarVisibility = TabBarVisibility()
     @State private var selectedTab: AppTab = .discover
+    /// キーボード表示中か。表示中はタブバーを隠す（safeAreaInsetのタブバーが
+    /// キーボードの上に浮いてしまうのを防ぐ）。
+    @State private var isKeyboardVisible = false
 
     /// - Parameter uid: ログイン中ユーザーのID。各データを Firestore の `users/{uid}` 配下に同期する。
     init(uid: String) {
@@ -71,13 +74,20 @@ struct MainTabView: View {
         // なるのを防ぐ（タブバー自体はガラス質感で背景が透けるので、
         // フローティングして見える見た目は保たれる）。
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !tabBarVisibility.isHidden {
+            // キーボード表示時、safeAreaInsetのタブバーはキーボード分だけ持ち上がって
+            // 浮いてしまう（.ignoresSafeArea(.keyboard)を付けてもsafeAreaInst自体が
+            // 追従するため止まらない）。LINE/インスタ同様、キーボード表示中はタブバーごと
+            // 隠す。検索欄は各タブとも上部にあるため隠れても支障はない。
+            if !tabBarVisibility.isHidden && !isKeyboardVisible {
                 CustomTabBarView(selectedTab: $selectedTab)
-                    // キーボード表示時、safeAreaInsetの中身はキーボード分だけ持ち上がってしまう。
-                    // タブバーはキーボードのセーフエリアを無視して最下部に固定し、キーボードの上に
-                    // 浮かないようにする（＝キーボードに隠れるのが正しい挙動）。
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
             }
+        }
+        // キーボードの表示・非表示を監視してタブバーの出し分けに使う。
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardVisible = false
         }
     }
 
