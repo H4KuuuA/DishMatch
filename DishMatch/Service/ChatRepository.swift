@@ -32,6 +32,27 @@ final class ChatRepository: @unchecked Sendable {
         try await chatDocument(chatId).setData(["participants": participants], merge: true)
     }
 
+    /// 自分が参加する全会話の最終メッセージ（プレビュー）をリアルタイム購読する。
+    /// 友達一覧をインスタDM風に表示するために使う。chatId をキーに返す。
+    /// participants の read ルールに合致するため `arrayContains` クエリで安全に取得できる。
+    func observeChatSummaries(myUid: String, onChange: @escaping @Sendable ([String: ChatSummary]) -> Void) -> RepositoryToken? {
+        let registration = db.collection("chats")
+            .whereField("participants", arrayContains: myUid)
+            .addSnapshotListener { snapshot, _ in
+                guard let documents = snapshot?.documents else { return }
+                var summaries: [String: ChatSummary] = [:]
+                for document in documents {
+                    let data = document.data()
+                    summaries[document.documentID] = ChatSummary(
+                        lastMessageText: data["lastMessageText"] as? String,
+                        lastMessageAt: data["lastMessageAt"] as? Double
+                    )
+                }
+                onChange(summaries)
+            }
+        return FirestoreListenerToken(registration: registration)
+    }
+
     /// メッセージを送信時刻順にリアルタイム購読する。
     func observeMessages(chatId: String, onChange: @escaping @Sendable ([ChatMessage]) -> Void) -> RepositoryToken? {
         let registration = messagesCollection(chatId)
