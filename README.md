@@ -134,9 +134,3 @@ npm test   # Firebase Emulator を起動して vitest を実行（Java が必要
 - Xcode 16 以降
 - Swift / SwiftUI
 - 対象 OS: iOS 18 以降
-
----
-
-## 作者
-
-大江 悠都
