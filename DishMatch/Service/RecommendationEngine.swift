@@ -131,10 +131,17 @@ extension RecommendationEngine {
 @available(iOS 26.0, *)
 @Generable
 struct AIRecommendation {
-    @Guide(description: "ユーザーに最もおすすめの料理ジャンルを1つ選ぶ")
-    var genre: RecommendedGenre
+    // 列挙型（英語のcase名）だと小型オンデバイスモデルが日本語の意図をうまく対応づけられず、
+    // 「コーヒー」で洋食を選ぶ等の誤りが起きた。日本語のジャンル名を .anyOf で選ばせ、後でコードに変換する。
+    @Guide(description: "ユーザーの気分に最も合う料理ジャンルを次から1つ選ぶ", .anyOf([
+        "居酒屋", "ダイニングバー・バル", "創作料理", "和食", "洋食", "イタリアン・フレンチ",
+        "中華", "焼肉・ホルモン", "韓国料理", "アジア・エスニック料理", "各国料理",
+        "カラオケ・パーティ", "バー・カクテル", "ラーメン", "お好み焼き・もんじゃ",
+        "カフェ・スイーツ", "その他グルメ"
+    ]))
+    var genre: String
 
-    @Guide(description: "料理名や気分を表す短い検索キーワード。特に無ければ空文字にする。例: ラーメン, 焼肉, おしゃれ, 記念日")
+    @Guide(description: "料理名や食材を表す日本語の短い単語。気分やあいまいな語しか無ければ空文字にする。例: ラーメン, 焼肉, パンケーキ, 寿司")
     var keyword: String
 
     @Guide(description: "重視する店の雰囲気や設備。最大3つまで。無ければ空配列にする。")
@@ -148,43 +155,35 @@ struct AIRecommendation {
         let trimmedKeyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         return RecommendationCriteria(
-            genreCode: genre.hotpepperCode,
+            genreCode: Self.hotpepperCode(forGenreName: genre),
             keyword: trimmedKeyword.isEmpty ? nil : trimmedKeyword,
             // 出会いの幅を残すためこだわりは最大3つに丸める
             particulars: Set(vibes.prefix(3).map { $0.particular }),
             reason: trimmedReason.isEmpty ? nil : trimmedReason
         )
     }
-}
 
-/// HotPepperの主要ジャンル。列挙型にすることで存在しないジャンルコードを出させない。
-@available(iOS 26.0, *)
-@Generable
-enum RecommendedGenre {
-    case izakaya, diningBar, creative, japanese, western, italianFrench, chinese
-    case yakiniku, korean, asianEthnic, international, karaokeParty, barCocktail
-    case ramen, cafeSweets, other, okonomiyaki
-
-    /// HotPepperジャンルマスタのコード。
-    var hotpepperCode: String {
-        switch self {
-        case .izakaya: return "G001"
-        case .diningBar: return "G002"
-        case .creative: return "G003"
-        case .japanese: return "G004"
-        case .western: return "G005"
-        case .italianFrench: return "G006"
-        case .chinese: return "G007"
-        case .yakiniku: return "G008"
-        case .korean: return "G017"
-        case .asianEthnic: return "G009"
-        case .international: return "G010"
-        case .karaokeParty: return "G011"
-        case .barCocktail: return "G012"
-        case .ramen: return "G013"
-        case .cafeSweets: return "G014"      // カフェ・スイーツ（旧マッピングはG015=その他グルメになっていた）
-        case .other: return "G015"           // その他グルメ
-        case .okonomiyaki: return "G016"     // お好み焼き・もんじゃ
+    /// 日本語のジャンル名 → HotPepperジャンルコード（get_genre実測に一致）。
+    static func hotpepperCode(forGenreName name: String) -> String? {
+        switch name {
+        case "居酒屋": return "G001"
+        case "ダイニングバー・バル": return "G002"
+        case "創作料理": return "G003"
+        case "和食": return "G004"
+        case "洋食": return "G005"
+        case "イタリアン・フレンチ": return "G006"
+        case "中華": return "G007"
+        case "焼肉・ホルモン": return "G008"
+        case "韓国料理": return "G017"
+        case "アジア・エスニック料理": return "G009"
+        case "各国料理": return "G010"
+        case "カラオケ・パーティ": return "G011"
+        case "バー・カクテル": return "G012"
+        case "ラーメン": return "G013"
+        case "お好み焼き・もんじゃ": return "G016"
+        case "カフェ・スイーツ": return "G014"
+        case "その他グルメ": return "G015"
+        default: return nil
         }
     }
 }
