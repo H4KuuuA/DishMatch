@@ -157,8 +157,8 @@ struct AIRecommendation {
 @Generable
 enum RecommendedGenre {
     case izakaya, diningBar, creative, japanese, western, italianFrench, chinese
-    case yakiniku, asianEthnic, international, karaokeParty, barCocktail
-    case ramen, okonomiyaki, cafeSweets, other
+    case yakiniku, korean, asianEthnic, international, karaokeParty, barCocktail
+    case ramen, cafeSweets, other, okonomiyaki
 
     /// HotPepperジャンルマスタのコード。
     var hotpepperCode: String {
@@ -171,14 +171,15 @@ enum RecommendedGenre {
         case .italianFrench: return "G006"
         case .chinese: return "G007"
         case .yakiniku: return "G008"
+        case .korean: return "G017"
         case .asianEthnic: return "G009"
         case .international: return "G010"
         case .karaokeParty: return "G011"
         case .barCocktail: return "G012"
         case .ramen: return "G013"
-        case .okonomiyaki: return "G014"
-        case .cafeSweets: return "G015"
-        case .other: return "G016"
+        case .cafeSweets: return "G014"      // カフェ・スイーツ（旧マッピングはG015=その他グルメになっていた）
+        case .other: return "G015"           // その他グルメ
+        case .okonomiyaki: return "G016"     // お好み焼き・もんじゃ
         }
     }
 }
