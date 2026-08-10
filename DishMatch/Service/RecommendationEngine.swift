@@ -114,7 +114,12 @@ extension RecommendationEngine {
         let prompt = Self.buildPrompt(userPrompt: userPrompt, likedShops: likedShops)
         do {
             let response = try await session.respond(to: prompt, generating: AIRecommendation.self)
-            return response.content.toCriteria()
+            let criteria = response.content.toCriteria()
+            #if DEBUG
+            // 実機のXcodeコンソールでAIの生成物を確認するためのログ（シミュレータはモデルが無く生成不可）
+            print("🔮[AIおすすめ] prompt=\(userPrompt ?? "（気分なし）") → genreCode=\(criteria.genreCode ?? "nil") keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
+            #endif
+            return criteria
         } catch {
             print("DEBUG: オンデバイス推薦エラー \(error.localizedDescription)")
             return nil
