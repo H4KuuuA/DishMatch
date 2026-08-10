@@ -97,6 +97,12 @@ struct DiscoverySettingsView: View {
                         }
                     }
                     .pickerStyle(MenuPickerStyle())
+
+                    // 選んだ予算「以下」の価格帯もまとめて検索する（初期値オン）
+                    Toggle("それ以下の予算も含める", isOn: $settings.includeCheaperBudgets)
+                        .disabled(settings.selectedBudget == .noPreference)
+                } footer: {
+                    Text("オンにすると、選んだ予算以下の価格帯もまとめて検索します（予算未記載のお店も含みます）。")
                 }
             }
             .overlay(alignment: .top) {

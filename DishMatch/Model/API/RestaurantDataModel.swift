@@ -332,6 +332,10 @@ enum BudgetType: String, CaseIterable {
         }
     }
 
+    /// 価格の安い順の順位（比較用）。allCases は `.noPreference` の後に安い順で並んでいるため、
+    /// その index をそのまま順位として使う。「予算 ≤ 選択」判定に用いる。
+    var priceRank: Int { BudgetType.allCases.firstIndex(of: self) ?? 0 }
+
     /// 予算コードから `BudgetType` を取得する
     static func from(code: String) -> BudgetType? {
         switch code {

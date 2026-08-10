@@ -106,7 +106,7 @@ final class RestaurantViewModel: ObservableObject {
         isLoading = true
         isFetchingNextPage = true
         // こだわらない場合は nil
-        let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
+        let budgetParam = settings.budgetAPICode
         // 適用中の絞り込み（AIおすすめが段階的リラックスで決めたもの）を引き継ぐ。無ければ絞り込まない。
         let genreParam = genre ?? appliedFilter?.genreCode
         let keywordParam = keyword ?? appliedFilter?.keyword
@@ -120,10 +120,10 @@ final class RestaurantViewModel: ObservableObject {
 
                 DispatchQueue.main.async {
                     if startIndex == 1 {
-                        self.shopList = result.results.shop
+                        self.shopList = result.results.shop.filter { self.passesBudgetCeiling($0) }
                         self.currentPage = 1
                     } else {
-                        self.shopList.insert(contentsOf: result.results.shop, at: 0)
+                        self.shopList.insert(contentsOf: result.results.shop.filter { self.passesBudgetCeiling($0) }, at: 0)
                     }
                     
                     self.totalResults = result.results.resultsAvailable
@@ -167,7 +167,7 @@ final class RestaurantViewModel: ObservableObject {
         }
 
         let (range, serviceAreaCode) = await resolveLocationParams()
-        let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
+        let budgetParam = settings.budgetAPICode
 
         // 厳しい→緩い の順に試し、件数がしきい値以上になった最初の段階を採用。
         // どれも満たさなければ最後（無条件）の結果を使う。
@@ -187,7 +187,7 @@ final class RestaurantViewModel: ObservableObject {
                     startIndex: 1
                 )
                 chosen = attempt
-                chosenShops = result.results.shop
+                chosenShops = result.results.shop.filter { self.passesBudgetCeiling($0) }
                 chosenTotal = result.results.resultsAvailable
                 if result.results.resultsAvailable >= Self.minRecommendationResults { break }
             }
@@ -246,6 +246,16 @@ final class RestaurantViewModel: ObservableObject {
         return attempts
     }
 
+    /// 「予算 ≤ 選択」フィルタ。トグル「それ以下も含める」がON かつ 予算選択ありの時のみ効く。
+    /// HotPepperの budget は最大2コードまでしか効かないため、下位ブラケット全部の絞り込みはここで行う。
+    /// 予算未記載（code空／未知）の店は、下位の掘り出し物を落とさないよう含める。
+    private func passesBudgetCeiling(_ shop: Shop) -> Bool {
+        guard settings.isBudgetCeilingActive else { return true }
+        let code = shop.budget?.code ?? ""
+        guard !code.isEmpty, let bracket = BudgetType.from(code: code) else { return true }
+        return bracket.priceRank <= settings.selectedBudget.priceRank
+    }
+
     /// ページング用のデータを API から取得する
     func fetchNextPage(keyword: String? = nil, genre: String? = nil, budget: String? = nil) {
         guard !isLoading, !isFetchingNextPage else { return }
@@ -260,7 +270,7 @@ final class RestaurantViewModel: ObservableObject {
         print("DEBUG 📌: fetchNextPage() - startIndex = \(nextStartIndex)")
         
         // こだわらない場合は nil
-        let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
+        let budgetParam = settings.budgetAPICode
         // 1ページ目で採用された絞り込みをそのまま引き継ぐ（同じ条件で続きを取る）
         let genreParam = genre ?? appliedFilter?.genreCode
         let keywordParam = keyword ?? appliedFilter?.keyword
