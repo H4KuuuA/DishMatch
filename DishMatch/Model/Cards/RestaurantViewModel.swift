@@ -8,10 +8,21 @@
 import Foundation
 
 /// HotPepper検索へ実際に適用する絞り込み条件。AIおすすめの「段階的リラックス」で決まる。
+/// genreCodes が「意図の硬い境界線」で、ページングやリラックスでもこの外へは広げない。
 struct AppliedFilter {
-    var genreCode: String?
+    /// 検索対象のジャンルコード集合（primaryが先頭）。空なら絞り込みなし（ニュートラル）。
+    var genreCodes: [String]
+    /// キーワード。`keywordIsFilter`がtrueならAPIで絞り込み、falseなら並び順（一致店を上位）にだけ使う。
     var keyword: String?
+    /// keywordをAPIの絞り込みに使うか。件数が足りないと段階的にfalseへ降格する。
+    var keywordIsFilter: Bool
+    /// こだわり条件（最小限）。件数が足りないと最初に外す。
     var particulars: Set<ParticularOption>
+    /// broad（複数ジャンルをprimary厚めに加重マージ）か、specific（先頭ジャンルのみ）か。
+    var isBroad: Bool
+
+    /// 絞り込みなしのニュートラル（初回・通常ディスカバリー）。
+    static let neutral = AppliedFilter(genreCodes: [], keyword: nil, keywordIsFilter: false, particulars: [], isBroad: false)
 }
 
 @MainActor
@@ -51,6 +62,10 @@ final class RestaurantViewModel: ObservableObject {
     private let recommendationEngine = RecommendationEngine()
     /// 実際にHotPepper検索へ適用中の絞り込み（AIおすすめの段階的リラックスで決定）。nilなら絞り込みなし。
     private var appliedFilter: AppliedFilter?
+    /// ジャンル別の次に取得するstartIndex（ページング用）。ニュートラルは空文字""をキーに使う。
+    private var genreCursor: [String: Int] = [:]
+    /// ジャンル別のresultsAvailable（総件数）。カーソルが総件数を超えたらそのジャンルは打ち止め。
+    private var genreTotal: [String: Int] = [:]
     /// おすすめ検索で「十分な件数」とみなすしきい値。これ未満なら条件を1つ緩めて再検索する。
     /// カードスタックを常に満杯（1ページ＝20枚）にしたいので1ページ分に設定している。
     /// 大きいほど件数重視で条件を緩めやすく、小さいほど条件を残しやすい（調整可）。
@@ -65,7 +80,6 @@ final class RestaurantViewModel: ObservableObject {
     private var isObservingFavorites = false
     private var currentPage = 1
     private let pageSize = 20
-    private var totalResults = 0
     private var hasMorePages = true
 
     init(friendsViewModel: FriendsViewModel, favoritesRepository: FavoritesRepository? = nil) {
@@ -95,50 +109,38 @@ final class RestaurantViewModel: ObservableObject {
         isObservingFavorites = token != nil
     }
 
-    /// キーワードやジャンル、予算に基づいて店舗データをAPIから取得する（最初のページ）
-    /// - Parameters:
-    ///   - keyword: 検索するキーワード（例: "ラーメン"）【省略可能】
-    ///   - genre: 検索するジャンルID（例: "G001"）【省略可能】
-    ///   - budget: 検索する予算コード（例: "B003"）【省略可能】
-    ///   - startIndex: 取得を開始するインデックス（デフォルトは1）
-    func fetchShops(keyword: String? = nil, genre: String? = nil, budget: String? = nil, startIndex: Int = 1) {
+    /// 店舗データをAPIから取得して1ページ目を表示する（初回・リロード）。
+    /// 適用中の絞り込み（AIおすすめが決めたもの）があればそれを、無ければニュートラル（絞り込みなし）で読む。
+    /// - Parameter startIndex: 互換のため残すが、現在は常に1ページ目を読み直す。
+    func fetchShops(startIndex: Int = 1) {
         guard !isLoading else { return } // 既にロード中なら処理しない
+        let filter = appliedFilter ?? .neutral
+        Task { await loadFirstPage(filter: filter) }
+    }
+
+    /// 指定フィルタで1ページ目を取得し、カードスタックを差し替える。
+    private func loadFirstPage(filter: AppliedFilter) async {
+        guard !isLoading else { return }
         isLoading = true
         isFetchingNextPage = true
-        // こだわらない場合は nil
+        defer {
+            isLoading = false
+            isFetchingNextPage = false
+        }
+        appliedFilter = filter
+        resetCursors(for: filter)
+
+        let (range, serviceAreaCode) = await resolveLocationParams()
         let budgetParam = settings.budgetAPICode
-        // 適用中の絞り込み（AIおすすめが段階的リラックスで決めたもの）を引き継ぐ。無ければ絞り込まない。
-        let genreParam = genre ?? appliedFilter?.genreCode
-        let keywordParam = keyword ?? appliedFilter?.keyword
-        let particularsParam = appliedFilter.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
-
-        Task {
-            do {
-                let (range, serviceAreaCode) = await resolveLocationParams()
-                // API からデータ取得
-                let result = try await apiClient.fetchRestaurantData(keyword: keywordParam, range: range, genre: genreParam, budget: budgetParam, particulars: particularsParam, serviceAreaCode: serviceAreaCode, startIndex: startIndex)
-
-                DispatchQueue.main.async {
-                    if startIndex == 1 {
-                        self.shopList = result.results.shop.filter { self.passesBudgetCeiling($0) }
-                        self.currentPage = 1
-                    } else {
-                        self.shopList.insert(contentsOf: result.results.shop.filter { self.passesBudgetCeiling($0) }, at: 0)
-                    }
-                    
-                    self.totalResults = result.results.resultsAvailable
-                    self.hasMorePages = self.shopList.count < self.totalResults
-                    self.isLoading = false
-                    self.isFetchingNextPage = false
-                }
-            } catch {
-                print("エラー: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.isFetchingNextPage = false
-                    self.lastError = AppError.from(error, fallbackTitle: "お店を読み込めませんでした")
-                }
-            }
+        do {
+            let deck = try await fetchAndMerge(filter: filter, range: range, area: serviceAreaCode, budget: budgetParam)
+            // 関連度の高い順（deckの先頭）を最前面（配列末尾）に置くため反転する。
+            shopList = deck.reversed()
+            currentPage = 1
+            hasMorePages = filterHasMore()
+        } catch {
+            print("エラー: \(error.localizedDescription)")
+            lastError = AppError.from(error, fallbackTitle: "お店を読み込めませんでした")
         }
     }
 
@@ -148,10 +150,10 @@ final class RestaurantViewModel: ObservableObject {
     /// 今日の気分（任意）といいね履歴からAIに検索条件を提案させ、「段階的リラックス」で検索する。
     ///
     /// AIの条件をそのままANDで全部かけると結果が激減する（気分フレーズのkeywordはほぼ0件になる）。
-    /// そこで keyword・こだわり を厳しい順に緩めて検索する。ただし**ジャンルは外さない**
-    /// （ユーザーの意図を守り、関係ないお店＝別ジャンルを混ぜないため）。ジャンルだけの段階で
-    /// 1件でもあればそれを採用し、ジャンルすら0件の時だけ全ジャンルへフォールバックして空表示を避ける。
-    /// AIが使えない・ジャンル無しの場合は無条件（全ジャンル）になる。
+    /// そこで **ジャンル集合は固定したまま** こだわり→keyword絞り込み の順に緩めて件数を確保する。
+    /// ジャンル集合＝意図の硬い境界線なので、件数が足りなくても外へは絶対に広げない
+    /// （全ジャンルフォールバックは廃止）。0件ならそのまま空表示にする（少なくても正しい方針）。
+    /// AIが使えない・ジャンル無しの場合はニュートラル（絞り込みなし）で読む。
     /// - Parameter userPrompt: 今日の気分・リクエスト。空・nil なら履歴のみで判断する。
     func applyRecommendation(userPrompt: String?) async {
         guard !isLoading else { return }
@@ -170,32 +172,20 @@ final class RestaurantViewModel: ObservableObject {
         let (range, serviceAreaCode) = await resolveLocationParams()
         let budgetParam = settings.budgetAPICode
 
-        // 厳しい→緩い の順に試し、件数がしきい値以上になった最初の段階を採用。
-        // どれも満たさなければ最後（無条件）の結果を使う。
-        let attempts = relaxationAttempts(for: criteria)
-        var chosen = attempts[attempts.count - 1]
-        var chosenShops: [Shop] = []
-        var chosenTotal = 0
+        // ジャンル集合を固定したまま緩める段（厳しい→緩い）。件数がしきい値以上になった最初の段を採用。
+        let ladder = relaxationLadder(for: criteria)
+        var chosen = ladder[ladder.count - 1]
+        var chosenDeck: [Shop] = []
         do {
-            for attempt in attempts {
-                let result = try await apiClient.fetchRestaurantData(
-                    keyword: attempt.keyword,
-                    range: range,
-                    genre: attempt.genreCode,
-                    budget: budgetParam,
-                    particulars: DiscoveryParticulars(selected: attempt.particulars),
-                    serviceAreaCode: serviceAreaCode,
-                    startIndex: 1
-                )
-                chosen = attempt
-                chosenShops = result.results.shop.filter { self.passesBudgetCeiling($0) }
-                chosenTotal = result.results.resultsAvailable
-                if result.results.resultsAvailable >= Self.minRecommendationResults { break }
-                // ジャンルだけの段階で1件でもあれば採用する。ユーザーの意図（ジャンル）を守り、
-                // 関係ないお店を混ぜないため、全ジャンルへは落とさない。ジャンルすら0件の時だけ
-                // 次段（全ジャンル）へフォールバックして空表示を避ける。
-                let isGenreOnly = attempt.genreCode != nil && attempt.keyword == nil && attempt.particulars.isEmpty
-                if isGenreOnly && result.results.resultsAvailable > 0 { break }
+            for (index, filter) in ladder.enumerated() {
+                resetCursors(for: filter)
+                let deck = try await fetchAndMerge(filter: filter, range: range, area: serviceAreaCode, budget: budgetParam)
+                chosen = filter
+                chosenDeck = deck
+                // 集合全体のAPI総件数がしきい値以上なら、この段で確定。
+                let totalAvailable = genreTotal.values.reduce(0, +)
+                if totalAvailable >= Self.minRecommendationResults { break }
+                if index == ladder.count - 1 { break }
             }
         } catch {
             print("エラー: \(error.localizedDescription)")
@@ -204,22 +194,25 @@ final class RestaurantViewModel: ObservableObject {
         }
 
         appliedFilter = chosen
-        shopList = chosenShops
+        // 関連度の高い順（deckの先頭）を最前面（配列末尾）に置くため反転する。
+        shopList = chosenDeck.reversed()
         currentPage = 1
-        totalResults = chosenTotal
-        hasMorePages = shopList.count < totalResults
+        hasMorePages = filterHasMore()
     }
 
     /// 現在地/エリア指定に応じた range と serviceAreaCode を解決する。
     /// 現在地モードでは位置情報の許可要求と、失敗時のエラー報告もここで行う。
-    private func resolveLocationParams() async -> (range: String?, serviceAreaCode: String?) {
+    /// - Parameter requestPermission: falseなら許可要求・エラー報告をスキップ（ページング時に多重報告しないため）。
+    private func resolveLocationParams(requestPermission: Bool = true) async -> (range: String?, serviceAreaCode: String?) {
         switch settings.searchLocationMode {
         case .currentLocation:
-            let locationManager = LocationManager.shared
-            await locationManager.requestLocationPermissionIfNeeded()
-            // 位置情報取得の失敗とAPI取得の失敗は別要因のため、独立して報告しておく
-            if let locationError = locationManager.locationError {
-                lastError = AppError.from(locationError, fallbackTitle: locationError.errorTitle)
+            if requestPermission {
+                let locationManager = LocationManager.shared
+                await locationManager.requestLocationPermissionIfNeeded()
+                // 位置情報取得の失敗とAPI取得の失敗は別要因のため、独立して報告しておく
+                if let locationError = locationManager.locationError {
+                    lastError = AppError.from(locationError, fallbackTitle: locationError.errorTitle)
+                }
             }
             return (settings.selectedRange.rangeValue, nil)
         case .area:
@@ -227,29 +220,134 @@ final class RestaurantViewModel: ObservableObject {
         }
     }
 
-    /// AIおすすめの条件を「厳しい→緩い」の段階に展開する（applyRecommendationが順に試す）。
-    private func relaxationAttempts(for criteria: RecommendationCriteria?) -> [AppliedFilter] {
-        guard let criteria, let genre = criteria.genreCode else {
-            // AIが使えない/ジャンル無し → 無条件（最大件数）
-            return [AppliedFilter(genreCode: nil, keyword: nil, particulars: [])]
+    /// AIおすすめの条件を「厳しい→緩い」の段に展開する（ジャンル集合は全段で固定）。
+    /// applyRecommendationが順に試し、件数がしきい値以上になった最初の段を採用する。
+    private func relaxationLadder(for criteria: RecommendationCriteria?) -> [AppliedFilter] {
+        guard let criteria, !criteria.genreCodes.isEmpty else {
+            // AIが使えない/ジャンル無し → ニュートラル（絞り込みなし）
+            return [.neutral]
         }
+        let codes = criteria.genreCodes
+        let isBroad = criteria.isBroad
         let keyword = criteria.keyword
+        let hasKeyword = !(keyword ?? "").isEmpty
         let particulars = criteria.particulars
 
-        var attempts: [AppliedFilter] = []
-        // 1. ジャンル＋キーワード＋こだわり（AIの提案そのまま）
-        if keyword != nil || !particulars.isEmpty {
-            attempts.append(AppliedFilter(genreCode: genre, keyword: keyword, particulars: particulars))
-        }
-        // 2. ジャンル＋こだわり（キーワードを外す＝一番結果を潰しやすい）
+        var ladder: [AppliedFilter] = []
+        // 1. こだわり＋keyword絞り込み（AIの提案そのまま）。こだわりがある時だけ。
         if !particulars.isEmpty {
-            attempts.append(AppliedFilter(genreCode: genre, keyword: nil, particulars: particulars))
+            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: hasKeyword, particulars: particulars, isBroad: isBroad))
         }
-        // 3. ジャンルのみ
-        attempts.append(AppliedFilter(genreCode: genre, keyword: nil, particulars: []))
-        // 4. 無条件（ジャンルも外す）＝必ず件数を確保
-        attempts.append(AppliedFilter(genreCode: nil, keyword: nil, particulars: []))
-        return attempts
+        // 2. こだわりを外し、keyword絞り込みは残す。keywordがある時だけ意味がある。
+        if hasKeyword {
+            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: true, particulars: [], isBroad: isBroad))
+        }
+        // 3. 集合のみ。keywordは並び順（一致店を上位）だけに降格し、絞り込みには使わない。
+        ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: [], isBroad: isBroad))
+        return ladder
+    }
+
+    // MARK: - ジャンル集合の取得・マージ
+
+    /// フィルタのジャンル別カーソルを1にリセットする（ニュートラルはキー""）。
+    private func resetCursors(for filter: AppliedFilter) {
+        genreCursor = [:]
+        genreTotal = [:]
+        let keys = filter.genreCodes.isEmpty ? [""] : filter.genreCodes
+        for key in keys { genreCursor[key] = 1 }
+    }
+
+    /// まだ取得していないページが1つでも残っているか（ジャンル別カーソル基準）。
+    private func filterHasMore() -> Bool {
+        genreCursor.contains { code, next in
+            let total = genreTotal[code] ?? Int.max
+            return next <= total
+        }
+    }
+
+    /// 現在のカーソルから、フィルタの各ジャンルを1ページずつ取得し、加重マージした「デッキ（関連度の高い順）」を返す。
+    /// 取得のたびにカーソル・総件数を更新するので、続けて呼べば次ページになる。
+    private func fetchAndMerge(filter: AppliedFilter, range: String?, area: String?, budget: String?) async throws -> [Shop] {
+        let codes = filter.genreCodes.isEmpty ? [""] : filter.genreCodes
+        let particularsParam = DiscoveryParticulars(selected: filter.particulars)
+        let keywordParam = filter.keywordIsFilter ? filter.keyword : nil
+
+        var perGenre: [(code: String, shops: [Shop])] = []
+        for code in codes {
+            let start = genreCursor[code] ?? 1
+            // このジャンルが打ち止めなら空で足す（マージのバランスは他ジャンルで取る）。
+            if let total = genreTotal[code], start > total {
+                perGenre.append((code, []))
+                continue
+            }
+            let genreParam = code.isEmpty ? nil : code
+            let result = try await apiClient.fetchRestaurantData(
+                keyword: keywordParam,
+                range: range,
+                genre: genreParam,
+                budget: budget,
+                particulars: particularsParam,
+                serviceAreaCode: area,
+                startIndex: start
+            )
+            genreTotal[code] = result.results.resultsAvailable
+            genreCursor[code] = start + pageSize
+            let shops = result.results.shop.filter { self.passesBudgetCeiling($0) }
+            perGenre.append((code, shops))
+        }
+        return mergeByPreference(perGenre: perGenre, keyword: filter.keyword, isBroad: filter.isBroad)
+    }
+
+    /// ジャンル別の結果を1本のデッキ（関連度の高い順）にまとめる。
+    /// specific: 先頭ジャンルのみ。keyword一致店を上位・非一致店を下位に。
+    /// broad: primary厚め（primaryを多め）の加重インターリーブ＋各ジャンル内でkeyword一致を優先。
+    private func mergeByPreference(perGenre: [(code: String, shops: [Shop])], keyword: String?, isBroad: Bool) -> [Shop] {
+        // 各ジャンル内で keyword 一致を上位へ寄せる。
+        let ordered = perGenre.map { (code: $0.code, shops: orderByKeyword($0.shops, keyword: keyword)) }
+
+        var seen = Set<String>()
+        var deck: [Shop] = []
+
+        if !isBroad || ordered.count <= 1 {
+            // specific（または単一ジャンル）：先頭から順に連結。
+            for genre in ordered {
+                for shop in genre.shops where seen.insert(shop.id).inserted {
+                    deck.append(shop)
+                }
+            }
+            return deck
+        }
+
+        // broad：primary(index 0)を2回、各secondaryを1回ずつ回すパターンで交互配置。
+        var queues = ordered.map { Array($0.shops) }
+        var pattern: [Int] = [0, 0]
+        for i in 1..<queues.count { pattern.append(i) }
+
+        var patternIndex = 0
+        var remaining = queues.reduce(0) { $0 + $1.count }
+        while remaining > 0 {
+            let genreIndex = pattern[patternIndex % pattern.count]
+            patternIndex += 1
+            guard !queues[genreIndex].isEmpty else { continue }
+            let shop = queues[genreIndex].removeFirst()
+            remaining -= 1
+            if seen.insert(shop.id).inserted { deck.append(shop) }
+        }
+        return deck
+    }
+
+    /// keyword一致店を先頭に寄せた並びを返す（順序は安定）。keywordが空ならそのまま。
+    private func orderByKeyword(_ shops: [Shop], keyword: String?) -> [Shop] {
+        guard let raw = keyword?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return shops }
+        let matched = shops.filter { shopMatchesKeyword($0, raw) }
+        let rest = shops.filter { !shopMatchesKeyword($0, raw) }
+        return matched + rest
+    }
+
+    /// 店名・ジャンル名・キャッチにkeywordが含まれるか（並び順用の緩い判定）。
+    private func shopMatchesKeyword(_ shop: Shop, _ keyword: String) -> Bool {
+        let haystack = [shop.name, shop.genre.name, shop.shopCatch]
+        return haystack.contains { $0.localizedCaseInsensitiveContains(keyword) }
     }
 
     /// 「予算 ≤ 選択」フィルタ。トグル「それ以下も含める」がON かつ 予算選択ありの時のみ効く。
@@ -262,62 +360,44 @@ final class RestaurantViewModel: ObservableObject {
         return bracket.priceRank <= settings.selectedBudget.priceRank
     }
 
-    /// ページング用のデータを API から取得する
-    func fetchNextPage(keyword: String? = nil, genre: String? = nil, budget: String? = nil) {
+    /// 次ページを取得してカードスタックに継ぎ足す。1ページ目で採用したフィルタ（ジャンル集合）を
+    /// そのまま引き継ぎ、ジャンル別カーソルの続きを取得・加重マージして前方（＝スタック下方）へ挿入する。
+    func fetchNextPage() {
         guard !isLoading, !isFetchingNextPage else { return }
-        guard shopList.count < totalResults else {
+        guard filterHasMore() else {
             print("⚠️ すべてのデータを取得済みです")
             return
         }
-        
+        let filter = appliedFilter ?? .neutral
         isFetchingNextPage = true
-        let nextStartIndex = (currentPage * pageSize) + 1
-        
-        print("DEBUG 📌: fetchNextPage() - startIndex = \(nextStartIndex)")
-        
-        // こだわらない場合は nil
-        let budgetParam = settings.budgetAPICode
-        // 1ページ目で採用された絞り込みをそのまま引き継ぐ（同じ条件で続きを取る）
-        let genreParam = genre ?? appliedFilter?.genreCode
-        let keywordParam = keyword ?? appliedFilter?.keyword
-        let particularsParam = appliedFilter.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
 
         Task {
+            defer { isFetchingNextPage = false }
             do {
-                let range: String?
-                let serviceAreaCode: String?
-                switch settings.searchLocationMode {
-                case .currentLocation:
-                    range = settings.selectedRange.rangeValue
-                    serviceAreaCode = nil
-                case .area:
-                    range = nil
-                    serviceAreaCode = settings.selectedServiceAreaCode
-                }
-                let result = try await apiClient.fetchRestaurantData(keyword: keywordParam, range: range, genre: genreParam, budget: budgetParam, particulars: particularsParam, serviceAreaCode: serviceAreaCode, startIndex: nextStartIndex)
-
-                DispatchQueue.main.async {
-                    self.shopList.insert(contentsOf: result.results.shop, at: 0)
-                    self.currentPage += 1
-                    self.isFetchingNextPage = false
-                }
+                // ページング時は位置情報の許可要求・エラー報告をしない（多重報告を避ける）。
+                let (range, serviceAreaCode) = await resolveLocationParams(requestPermission: false)
+                let budgetParam = settings.budgetAPICode
+                let more = try await fetchAndMerge(filter: filter, range: range, area: serviceAreaCode, budget: budgetParam)
+                let existing = Set(shopList.map { $0.id })
+                let newOnes = more.filter { !existing.contains($0.id) }
+                // 新ページは既存より関連度が低い。前方（＝最前面から遠い側）へ、反転して挿入する。
+                shopList.insert(contentsOf: newOnes.reversed(), at: 0)
+                currentPage += 1
+                hasMorePages = filterHasMore()
             } catch {
                 print("エラー: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isFetchingNextPage = false
-                    self.lastError = AppError.from(error, fallbackTitle: "続きのお店を読み込めませんでした")
-                }
+                lastError = AppError.from(error, fallbackTitle: "続きのお店を読み込めませんでした")
             }
         }
     }
 
     /// リストの最後の5つ前で次ページを取得
-    func loadMoreShopsIfNeeded(currentShop: Shop, keyword: String? = nil, genre: String? = nil, budget: String? = nil) {
+    func loadMoreShopsIfNeeded(currentShop: Shop) {
         guard hasMorePages else { return }
-        
+
         if let lastIndex = shopList.firstIndex(where: { $0.id == currentShop.id }),
            lastIndex >= shopList.count - 5 {
-            fetchNextPage(keyword: keyword, genre: genre, budget: budget)
+            fetchNextPage()
         }
     }
     

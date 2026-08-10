@@ -14,11 +14,15 @@ import FoundationModels
 /// FoundationModels由来の型はこのファイル下部の `@available(iOS 26.0, *)` 部分に閉じ込め、
 /// 他の層（RestaurantViewModelなど）はこの型だけを扱う。
 struct RecommendationCriteria {
-    /// HotPepperのジャンルコード（例: "G008"）。nilなら絞り込まない。
-    var genreCode: String?
+    /// HotPepperのジャンルコード集合（primaryが先頭・重複排除・最大3件）。
+    /// これが「意図の硬い境界線」で、検索時にこの外へは絶対に広げない。空なら絞り込まない。
+    var genreCodes: [String]
+    /// テーマが広いか（broad）。broadのときだけ複数ジャンルを加重マージする。
+    /// specific（コーヒー等の具体テーマ）は先頭1ジャンルに閉じる。
+    var isBroad: Bool
     /// 追加の検索キーワード。nilなら付けない。
     var keyword: String?
-    /// 重視する「こだわり」条件。
+    /// 重視する「こだわり」条件（最小限）。
     var particulars: Set<ParticularOption>
     /// この提案を選んだ理由（UI表示用）。
     var reason: String?
@@ -28,8 +32,7 @@ struct RecommendationCriteria {
 /// HotPepperの検索条件を提案するエンジン。
 ///
 /// 非対応OS（iOS 26未満）・非対応端末（Apple Intelligence非対応）では `recommend` が nil を返し、
-/// 呼び出し元はニュートラルな既定（ジャンル無指定の発見）にフォールバックする。iOS 26普及までは
-/// このフォールバック経路が主経路になる想定。
+/// 呼び出し元はニュートラルな既定（ジャンル無指定の発見）にフォールバックする。
 @MainActor
 final class RecommendationEngine: ObservableObject {
     #if canImport(FoundationModels)
@@ -63,11 +66,20 @@ final class RecommendationEngine: ObservableObject {
 
     // MARK: - プロンプト組み立て（OSバージョン非依存）
 
-    /// モデルへ渡すシステム指示。優先度（今日の気分＞履歴）と、無難さ回避をここで明示する。
+    /// モデルへ渡すシステム指示。優先度・具体度(breadth)の判定基準・無難さ回避をここで明示する。
     static let instructions = """
-    あなたはレストラン発見アプリのアシスタントです。ユーザーの「いいね履歴」と「今日の気分」から、\
-    その人に響く検索条件を1つだけ提案します。優先順位は必ず「今日の気分」＞「いいね履歴」です。\
-    無難な提案ばかりにせず、ときには意外性のある一皿も提案してください。ジャンルは必ず1つ選びます。
+    あなたはレストラン発見アプリのアシスタントです。ユーザーの「いいね履歴」と「今日の気分」から検索条件を提案します。
+    ルール:
+    ・優先順位は必ず「今日の気分」＞「いいね履歴」。
+    ・primaryGenre は必ず1つ選ぶ。
+    ・breadth は、コーヒー・パンケーキ・寿司・ラーメンなど"特定の料理や飲み物"を指すなら "specific"、\
+    「がっつり」「軽く飲みたい」「なんでも」など"漠然とした気分"なら "broad"。
+    ・"broad" のときだけ、primaryと雰囲気の近い secondaryGenre を最大2つ足す。"specific" では「なし」にする。
+    ・keyword は具体的な料理・食材の短い日本語だけ（例: コーヒー, 焼肉, パンケーキ）。気分の言葉しか無ければ空文字にする。
+    例:
+    ・「コーヒー飲みたい」→ primary=カフェ・スイーツ / breadth=specific / keyword=コーヒー
+    ・「がっつり食べたい」→ primary=焼肉・ホルモン / breadth=broad / secondary=居酒屋,ラーメン
+    ・「軽く飲みたい」→ primary=ダイニングバー・バル / breadth=broad / secondary=居酒屋,バー・カクテル
     """
 
     /// 履歴と今日の気分から入力プロンプト文を組み立てる。
@@ -117,11 +129,10 @@ extension RecommendationEngine {
             let criteria = response.content.toCriteria()
             #if DEBUG
             // 実機のXcodeコンソールで、AIへの入力（いいね傾向を含むプロンプト）と生成物を確認する。
-            // 「いいねを見ているか」を検証するため、いいね件数・ジャンル・実プロンプトも出す。
             let likedGenres = likedShops.map { $0.genre.name }
             print("🔮[AIおすすめ] いいね件数=\(likedShops.count) ジャンル=\(likedGenres)")
             print("🔮[AIおすすめ] 入力プロンプト:\n\(prompt)")
-            print("🔮[AIおすすめ] 生成: genreCode=\(criteria.genreCode ?? "nil") keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
+            print("🔮[AIおすすめ] 生成: genreCodes=\(criteria.genreCodes) broad=\(criteria.isBroad) keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
             #endif
             return criteria
         } catch {
@@ -132,42 +143,76 @@ extension RecommendationEngine {
 }
 
 /// モデルに生成させる検索条件。`@Generable` によりこの構造に沿った出力を保証する（ハルシネーション防止）。
+/// 小型オンデバイスモデルでも精度が出るよう、判断を小さな離散選択に分解している
+/// （主ジャンル1つ＋具体度＋（広い時だけ）追加ジャンル）。
 @available(iOS 26.0, *)
 @Generable
 struct AIRecommendation {
-    // 列挙型（英語のcase名）だと小型オンデバイスモデルが日本語の意図をうまく対応づけられず、
-    // 「コーヒー」で洋食を選ぶ等の誤りが起きた。日本語のジャンル名を .anyOf で選ばせ、後でコードに変換する。
-    @Guide(description: "ユーザーの気分に最も合う料理ジャンルを次から1つ選ぶ", .anyOf([
-        "居酒屋", "ダイニングバー・バル", "創作料理", "和食", "洋食", "イタリアン・フレンチ",
-        "中華", "焼肉・ホルモン", "韓国料理", "アジア・エスニック料理", "各国料理",
-        "カラオケ・パーティ", "バー・カクテル", "ラーメン", "お好み焼き・もんじゃ",
-        "カフェ・スイーツ", "その他グルメ"
-    ]))
-    var genre: String
+    // 列挙型（英語のcase名）だと小型モデルが日本語の意図をうまく対応づけられないため、
+    // 日本語のジャンル名を .anyOf で選ばせ、後でコードに変換する。
+    @Guide(description: "ユーザーの気分に最も合う主役の料理ジャンルを次から1つ選ぶ", .anyOf(Self.genreNames))
+    var primaryGenre: String
 
-    @Guide(description: "料理名や食材を表す日本語の短い単語。気分やあいまいな語しか無ければ空文字にする。例: ラーメン, 焼肉, パンケーキ, 寿司")
+    @Guide(description: "リクエストの具体度。特定の料理や飲み物名なら specific、漠然とした気分なら broad", .anyOf(["specific", "broad"]))
+    var breadth: String
+
+    @Guide(description: "broadのとき primary と雰囲気の近い追加ジャンル1。specificなら「なし」", .anyOf(Self.genreNamesWithNone))
+    var secondaryGenre1: String
+
+    @Guide(description: "broadのとき primary と雰囲気の近い追加ジャンル2。specificや不要なら「なし」", .anyOf(Self.genreNamesWithNone))
+    var secondaryGenre2: String
+
+    @Guide(description: "料理名や食材を表す日本語の短い単語。気分やあいまいな語しか無ければ空文字にする。例: コーヒー, 焼肉, パンケーキ")
     var keyword: String
 
-    @Guide(description: "重視する店の雰囲気や設備。最大3つまで。無ければ空配列にする。")
+    @Guide(description: "重視する店の雰囲気や設備。最大2つ。無ければ空配列。")
     var vibes: [RecommendedVibe]
 
     @Guide(description: "この提案を選んだ理由を、ユーザーのいいね傾向や今日の気分に触れて1文で述べる")
     var reason: String
 
+    /// 選ばせるジャンル名（HotPepperのジャンルマスタに一致）。
+    static let genreNames = [
+        "居酒屋", "ダイニングバー・バル", "創作料理", "和食", "洋食", "イタリアン・フレンチ",
+        "中華", "焼肉・ホルモン", "韓国料理", "アジア・エスニック料理", "各国料理",
+        "カラオケ・パーティ", "バー・カクテル", "ラーメン", "お好み焼き・もんじゃ",
+        "カフェ・スイーツ", "その他グルメ"
+    ]
+    /// secondary用（「なし」を選べる）。
+    static let genreNamesWithNone = ["なし"] + genreNames
+
     /// アプリ全体で使うプレーンな型へ変換する。
     func toCriteria() -> RecommendationCriteria {
         let trimmedKeyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasKeyword = !trimmedKeyword.isEmpty
+        // 具体語(keyword)があれば specific に寄せる二重ガード。狭いテーマが誤って複数ジャンルに広がるのを防ぐ。
+        let broad = (breadth == "broad") && !hasKeyword
+
+        var codes: [String] = []
+        if let primary = Self.hotpepperCode(forGenreName: primaryGenre) {
+            codes.append(primary)
+        }
+        if broad {
+            for name in [secondaryGenre1, secondaryGenre2] {
+                if let code = Self.hotpepperCode(forGenreName: name), !codes.contains(code) {
+                    codes.append(code)
+                }
+            }
+        }
+        codes = Array(codes.prefix(3))
+
         let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         return RecommendationCriteria(
-            genreCode: Self.hotpepperCode(forGenreName: genre),
-            keyword: trimmedKeyword.isEmpty ? nil : trimmedKeyword,
-            // 出会いの幅を残すためこだわりは最大3つに丸める
-            particulars: Set(vibes.prefix(3).map { $0.particular }),
+            genreCodes: codes,
+            isBroad: broad && codes.count > 1,
+            keyword: hasKeyword ? trimmedKeyword : nil,
+            // 出会いの幅を残しつつ最小限に。こだわりは最大2つに丸める。
+            particulars: Set(vibes.prefix(2).map { $0.particular }),
             reason: trimmedReason.isEmpty ? nil : trimmedReason
         )
     }
 
-    /// 日本語のジャンル名 → HotPepperジャンルコード（get_genre実測に一致）。
+    /// 日本語のジャンル名 → HotPepperジャンルコード（get_genre実測に一致）。「なし」やその他は nil。
     static func hotpepperCode(forGenreName name: String) -> String? {
         switch name {
         case "居酒屋": return "G001"
@@ -192,12 +237,11 @@ struct AIRecommendation {
     }
 }
 
-/// 気分から選ばせる「こだわり」条件のサブセット（シチュエーションに効くものだけ）。
+/// 気分から選ばせる「こだわり」条件の最小サブセット（シチュエーションに効くものだけ）。
 @available(iOS 26.0, *)
 @Generable
 enum RecommendedVibe {
-    case privateRoom, allYouCanDrink, course, nightView, openAir, charter
-    case childFriendly, tatami, lateNight, karaoke, nonSmoking, lunch
+    case privateRoom, allYouCanDrink, course, lunch, nightView, charter
 
     /// アプリ内の `ParticularOption` へ対応づける。
     var particular: ParticularOption {
@@ -205,15 +249,9 @@ enum RecommendedVibe {
         case .privateRoom: return .privateRoom
         case .allYouCanDrink: return .freeDrink
         case .course: return .course
-        case .nightView: return .nightView
-        case .openAir: return .openAir
-        case .charter: return .charter
-        case .childFriendly: return .child
-        case .tatami: return .tatami
-        case .lateNight: return .midnight
-        case .karaoke: return .karaoke
-        case .nonSmoking: return .nonSmoking
         case .lunch: return .lunch
+        case .nightView: return .nightView
+        case .charter: return .charter
         }
     }
 }
