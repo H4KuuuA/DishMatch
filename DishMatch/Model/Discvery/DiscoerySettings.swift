@@ -22,6 +22,10 @@ final class DiscoverySettings: ObservableObject {
     @Published var selectedServiceAreaCode: String? { didSet { persist() } }
     @Published var selectedRange: MenuRangeType = .range5 { didSet { persist() } }
     @Published var selectedBudget: BudgetType = .noPreference { didSet { persist() } }
+    /// 「それ以下も含める」。オンの時、選んだ予算以下の価格帯もまとめて検索する（初期値オン）。
+    /// HotPepperの budget は最大2コードまでしか効かないため、下位ブラケット全部の絞り込みは
+    /// APIではなくアプリ側（RestaurantViewModel.passesBudgetCeiling）で行う。
+    @Published var includeCheaperBudgets: Bool = true { didSet { persist() } }
     /// 選択中のジャンルコード（例: "G001"）。nilなら絞り込まない
     @Published var selectedGenreCode: String? { didSet { persist() } }
     /// 選択中の「こだわり」条件。直接代入させず`toggleParticular(_:)`経由でのみ変更させることで
@@ -31,6 +35,18 @@ final class DiscoverySettings: ObservableObject {
     /// 現在の「こだわり」設定をAPIリクエスト用のパラメータに変換する
     var particulars: DiscoveryParticulars {
         DiscoveryParticulars(selected: selectedParticulars)
+    }
+
+    /// API に渡す予算コード。「それ以下も含める」がONの時はアプリ側でフィルタするため nil を返す
+    /// （＝APIでは予算で絞らず広めに取る）。OFFの時は選択したブラケットだけをAPIで絞り込む。
+    var budgetAPICode: String? {
+        guard selectedBudget != .noPreference else { return nil }
+        return includeCheaperBudgets ? nil : selectedBudget.budgetCode
+    }
+
+    /// 「予算 ≤ 選択」でアプリ側フィルタが必要か（トグルON かつ 予算選択あり）。
+    var isBudgetCeilingActive: Bool {
+        includeCheaperBudgets && selectedBudget != .noPreference
     }
 
     /// こだわりの選択上限に達しているかどうか
@@ -62,7 +78,8 @@ final class DiscoverySettings: ObservableObject {
             genreCode: selectedGenreCode,
             particularRawValues: selectedParticulars.map(\.rawValue),
             searchLocationModeRawValue: searchLocationMode.rawValue,
-            serviceAreaCode: selectedServiceAreaCode
+            serviceAreaCode: selectedServiceAreaCode,
+            includeCheaperBudgets: includeCheaperBudgets
         )
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         UserDefaults.standard.set(data, forKey: Self.userDefaultsKey)
@@ -79,6 +96,8 @@ final class DiscoverySettings: ObservableObject {
         selectedParticulars = Set(snapshot.particularRawValues.compactMap(ParticularOption.init(rawValue:)))
         searchLocationMode = snapshot.searchLocationModeRawValue.flatMap(SearchLocationMode.init(rawValue:)) ?? .currentLocation
         selectedServiceAreaCode = snapshot.serviceAreaCode
+        // 旧スナップショットにキーが無い場合は初期値オン
+        includeCheaperBudgets = snapshot.includeCheaperBudgets ?? true
     }
 
     private struct PersistedSnapshot: Codable {
@@ -88,6 +107,7 @@ final class DiscoverySettings: ObservableObject {
         let particularRawValues: [String]
         var searchLocationModeRawValue: String? = nil
         var serviceAreaCode: String? = nil
+        var includeCheaperBudgets: Bool? = nil
     }
 }
 
