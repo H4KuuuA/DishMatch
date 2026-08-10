@@ -84,9 +84,13 @@ final class RecommendationEngine: ObservableObject {
     その場面に合う"こだわり"を重要な順に最大3つ入れる。**先頭には個室のように幅広い店にある条件を置く**\
     （夜景など珍しい条件は先頭にしない）。keyword は空文字。
     ・vibes は重要な順に並べる。無ければ空配列。
+    ・紛らわしい語に注意: 「焼きそば」は"お好み焼き・もんじゃ"であり焼肉ではない。「そば/うどん」は和食。\
+    「パスタ/ピザ」はイタリアン。「ハンバーガー」は洋食。「〜以外」「〜は苦手」など否定は無視する。
     例:
     ・「コーヒー飲みたい」→ themeKind=料理 / primary=カフェ・スイーツ / breadth=specific / keyword=コーヒー
+    ・「焼きそば」→ themeKind=料理 / primary=お好み焼き・もんじゃ / breadth=specific / keyword=焼きそば
     ・「がっつり食べたい」→ themeKind=料理 / primary=焼肉・ホルモン / breadth=broad / secondary=居酒屋,ラーメン
+    ・「軽く一杯」→ themeKind=料理 / primary=居酒屋 / breadth=broad / secondary=ダイニングバー・バル,バー・カクテル
     ・「デート」→ themeKind=シチュエーション / vibes=個室,コース / keyword=空
     ・「女子会」→ themeKind=シチュエーション / vibes=個室,飲み放題
     ・「接待」→ themeKind=シチュエーション / vibes=個室,コース,座敷
@@ -107,70 +111,179 @@ final class RecommendationEngine: ObservableObject {
             """
         }
 
-        var seen = Set<String>()
-        let topGenres = likedShops
-            .map { $0.genre.name }
-            .filter { seen.insert($0).inserted }
+        // いいね履歴のジャンルを**頻度順**で並べる（よくLikeするジャンルほど前に）。
+        var counts: [String: Int] = [:]
+        var firstIndex: [String: Int] = [:]
+        for (index, shop) in likedShops.enumerated() {
+            let name = shop.genre.name
+            counts[name, default: 0] += 1
+            if firstIndex[name] == nil { firstIndex[name] = index }
+        }
+        let topGenres = counts.keys
+            .sorted { a, b in
+                if counts[a]! != counts[b]! { return counts[a]! > counts[b]! }      // 多い順
+                return firstIndex[a]! < firstIndex[b]!                                // 同数は先に出た順
+            }
             .prefix(6)
         let history = topGenres.isEmpty ? "まだ履歴なし" : topGenres.joined(separator: "、")
         return """
-        【いいねしたお店のジャンル傾向】\(history)
+        【いいねしたお店のジャンル傾向（よくLikeする順）】\(history)
         今日の気分は特に指定がないので、いいね履歴の傾向から、この人に響く検索条件を提案してください。
         """
     }
 
-    /// プロンプトが既知の「シチュエーション語」を含むなら、その場面向けの既定こだわり（優先度順）を返す。
-    /// 小型モデルの themeKind 誤判定に依存しないための**決定的ガード**。該当しなければ nil。
-    /// 「デート」等が確実にジャンル横断＋こだわりで出るようにする。
-    static func situationParticulars(for userPrompt: String?) -> [ParticularOption]? {
-        guard let text = userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
-        let lowered = text.lowercased()
-        func has(_ words: [String]) -> Bool { words.contains { lowered.contains($0.lowercased()) } }
+    /// モデルが出した keyword を掃除する。気分語・シチュエーション語・否定を含む文は料理keywordとして使わない。
+    static func cleanedKeyword(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+        // シチュエーション語や明示こだわり語が keyword に紛れていたら料理語ではないので落とす。
+        if situationParticulars(for: trimmed) != nil { return nil }
+        if !explicitParticulars(for: trimmed).isEmpty { return nil }
+        // 気分・曖昧語のストップリスト。
+        let stopWords = ["なんでも", "おすすめ", "美味しい", "おいしい", "適当", "普通", "食事", "ごはん", "ご飯", "ランチ", "ディナー"]
+        if stopWords.contains(where: { trimmed.contains($0) }) { return nil }
+        // 長すぎる（文章）のは料理語ではない。
+        if trimmed.count > 12 { return nil }
+        return trimmed
+    }
 
-        // 先頭＝ハード絞り込みに使う最重要こだわり。広く使える「個室」等を先頭に置く
-        // （夜景は多くの店で情報が無く絞ると激減するため既定には入れない）。残りは並び順で効く。
+    // MARK: - 決定的な入力解釈（モデル非依存・正規化＋否定検出つき）
+
+    /// プロンプトから決定的に読み取れるシグナル（オンデバイスモデルに依存しないので実機以外でも検証可）。
+    struct PromptSignals {
+        /// 料理語から確定したジャンルコード。無ければ nil。
+        var dishGenreCode: String?
+        /// シチュエーション語から得た既定こだわり（優先度順）。非nil＝シチュエーション検出（空配列＝絞りなし全ジャンル）。
+        var situationParticulars: [ParticularOption]?
+        /// プロンプトに明示されたこだわり（個室/夜景/時間帯 等）。優先度順。
+        var explicitParticulars: [ParticularOption]
+        /// 否定表現（〜以外/苦手 等）を含むか（ログ・保守的判断用）。
+        var hasNegation: Bool
+    }
+
+    /// 表記ゆれを吸収する正規化: 小文字化・全半角統一・カタカナ→ひらがな。
+    static func normalize(_ text: String) -> String {
+        let folded = text.folding(options: [.caseInsensitive, .widthInsensitive], locale: Locale(identifier: "ja_JP"))
+        return folded.applyingTransform(.hiraganaToKatakana, reverse: true) ?? folded
+    }
+
+    /// 否定・除外の目印。マッチ語の直後にこれらが来たら「その語は否定されている」とみなす。
+    private static let negationMarkers = ["以外", "抜き", "なし", "いらない", "いらん", "苦手", "じゃない", "ではない", "じゃなく", "ではなく", "飲めない", "食べられない", "避け", "ng"]
+
+    /// 正規化済みテキストで、マッチ末尾の直後に否定語が来るか（近傍10文字）を見る。
+    private static func isNegated(afterMatchEnd end: String.Index, in text: String) -> Bool {
+        let windowEnd = text.index(end, offsetBy: 10, limitedBy: text.endIndex) ?? text.endIndex
+        let window = String(text[end..<windowEnd])
+        return negationMarkers.contains { window.contains(normalize($0)) }
+    }
+
+    /// いずれかの語が「否定されずに」出現するか。表記ゆれ正規化＋否定検出つき。
+    static func mentions(_ words: [String], in rawText: String) -> Bool {
+        let hay = normalize(rawText)
+        for word in words {
+            let needle = normalize(word)
+            guard !needle.isEmpty else { continue }
+            var start = hay.startIndex
+            while let range = hay.range(of: needle, range: start..<hay.endIndex) {
+                if !isNegated(afterMatchEnd: range.upperBound, in: hay) { return true }
+                start = range.upperBound
+            }
+        }
+        return false
+    }
+
+    /// プロンプトを決定的に解釈して、料理ジャンル・シチュエーション・明示こだわりをまとめて返す。
+    static func interpret(_ userPrompt: String?) -> PromptSignals {
+        guard let text = userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+            return PromptSignals(dishGenreCode: nil, situationParticulars: nil, explicitParticulars: [], hasNegation: false)
+        }
+        let normalized = normalize(text)
+        let hasNegation = negationMarkers.contains { normalized.contains(normalize($0)) }
+        return PromptSignals(
+            dishGenreCode: dishGenreCode(for: text),
+            situationParticulars: situationParticulars(for: text),
+            explicitParticulars: explicitParticulars(for: text),
+            hasNegation: hasNegation
+        )
+    }
+
+    /// プロンプトが既知の「シチュエーション語」を含むなら、その場面向けの既定こだわり（優先度順）を返す。無ければ nil。
+    static func situationParticulars(for userPrompt: String?) -> [ParticularOption]? {
+        guard let text = userPrompt, !text.isEmpty else { return nil }
+        func has(_ words: [String]) -> Bool { mentions(words, in: text) }
+
+        // 先頭＝ハード絞り込みに使う最重要こだわり。広く使える「個室」等を先頭に置く。残りは並び順で効く。
         if has(["デート", "date"]) { return [.privateRoom, .course] }
         if has(["記念日", "誕生日", "お祝い", "アニバーサリー", "anniversary"]) { return [.privateRoom, .course] }
-        if has(["接待", "会食"]) { return [.privateRoom, .course, .tatami] }
+        if has(["接待", "会食", "商談", "打ち合わせ", "打合せ"]) { return [.privateRoom, .course, .tatami] }
         if has(["女子会"]) { return [.privateRoom, .freeDrink] }
-        if has(["合コン", "飲み会", "宴会"]) { return [.privateRoom, .freeDrink, .course] }
+        if has(["合コン", "飲み会", "宴会", "二次会", "送別会", "歓迎会", "歓送迎会", "打ち上げ", "懇親会", "オフ会"]) { return [.privateRoom, .freeDrink, .course] }
         if has(["子連れ", "子供", "こども", "家族", "ファミリー"]) { return [.child, .tatami] }
+        if has(["一人", "ひとり", "おひとりさま", "ソロ"]) { return [] } // 全ジャンル・絞りなしで気ままに
         return nil
     }
 
-    /// プロンプトが既知の「料理語」を含むなら、その料理に対応するHotPepperジャンルコードを返す。
-    /// 小型モデルが「焼きそば→焼肉」のように字面で誤分類するのを防ぐ決定的ガード。無ければ nil。
+    /// プロンプトが既知の「料理語」を含むなら、その料理に対応するHotPepperジャンルコードを返す。無ければ nil。
     /// 「焼きそば」を粉ものとして先に判定するなど、紛らわしい語は並び順に注意している。
     static func dishGenreCode(for userPrompt: String?) -> String? {
-        guard let text = userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
-        let lowered = text.lowercased()
-        func has(_ words: [String]) -> Bool { words.contains { lowered.contains($0.lowercased()) } }
+        guard let text = userPrompt, !text.isEmpty else { return nil }
+        func has(_ words: [String]) -> Bool { mentions(words, in: text) }
 
         // 粉もの（お好み焼き・もんじゃ G016）※「焼きそば」を「焼肉」より先に確実に拾う
         if has(["焼きそば", "焼そば", "やきそば", "お好み焼き", "おこのみやき", "もんじゃ", "たこ焼き", "たこやき"]) { return "G016" }
-        // ラーメン G013
-        if has(["ラーメン", "らーめん", "拉麺", "つけ麺", "油そば", "家系", "二郎"]) { return "G013" }
+        // ラーメン G013（チェーン含む）
+        if has(["ラーメン", "らーめん", "拉麺", "つけ麺", "油そば", "家系", "二郎", "一蘭", "一風堂", "天下一品"]) { return "G013" }
         // 焼肉・ホルモン G008
         if has(["焼肉", "焼き肉", "やきにく", "ホルモン", "カルビ", "ジンギスカン"]) { return "G008" }
         // 韓国料理 G017
         if has(["韓国", "サムギョプサル", "チヂミ", "キンパ", "ビビンバ", "スンドゥブ", "トッポギ"]) { return "G017" }
         // 中華 G007
         if has(["中華", "餃子", "ぎょうざ", "麻婆", "点心", "小籠包", "町中華", "四川", "台湾料理"]) { return "G007" }
-        // イタリアン・フレンチ G006
-        if has(["ピザ", "ピッツァ", "パスタ", "イタリアン", "リゾット", "フレンチ"]) { return "G006" }
-        // 洋食 G005
-        if has(["ハンバーグ", "オムライス", "ステーキ", "洋食", "グラタン", "ハンバーガー"]) { return "G005" }
-        // カフェ・スイーツ G014
-        if has(["コーヒー", "珈琲", "カフェ", "パンケーキ", "ケーキ", "パフェ", "スイーツ", "甘味", "抹茶", "タピオカ"]) { return "G014" }
+        // イタリアン・フレンチ G006（チェーン含む）
+        if has(["ピザ", "ピッツァ", "パスタ", "イタリアン", "リゾット", "フレンチ", "サイゼ", "サイゼリヤ"]) { return "G006" }
+        // 洋食・ファストフード G005（チェーン含む）
+        if has(["ハンバーグ", "オムライス", "ステーキ", "洋食", "グラタン", "ハンバーガー", "マック", "マクドナルド", "モスバーガー", "ケンタッキー", "kfc", "ガスト", "ジョナサン"]) { return "G005" }
+        // カフェ・スイーツ G014（チェーン・作業/勉強も含む）
+        if has(["コーヒー", "珈琲", "カフェ", "パンケーキ", "ケーキ", "パフェ", "スイーツ", "甘味", "抹茶", "タピオカ", "スタバ", "スターバックス", "ドトール", "コメダ", "タリーズ", "ミスド", "作業", "勉強", "ノマド", "リモートワーク"]) { return "G014" }
         // 焼き鳥・串（居酒屋 G001）
         if has(["焼き鳥", "焼鳥", "やきとり", "串カツ", "串揚げ", "もつ煮", "もつ鍋"]) { return "G001" }
         // アジア・エスニック G009
         if has(["タイ料理", "ベトナム", "エスニック", "インドカレー", "ガパオ", "フォー", "ナン", "スパイスカレー"]) { return "G009" }
+        // 居酒屋 G001（お酒・飲み系の語）※バー系より広く受けたいので先に
+        if has(["居酒屋", "ビール", "生ビール", "ビアガーデン", "日本酒", "地酒", "焼酎", "ハイボール", "サワー", "酎ハイ", "レモンサワー", "飲み"]) { return "G001" }
         // バー・カクテル G012
-        if has(["カクテル", "ウイスキー", "ワインバー"]) { return "G012" }
-        // 和食 G004 ※「焼きそば/つけ麺」等は上で処理済みなので「そば」はここで蕎麦として拾える
-        if has(["寿司", "鮨", "寿し", "刺身", "天ぷら", "てんぷら", "うなぎ", "鰻", "そば", "蕎麦", "うどん", "和食", "懐石", "割烹", "海鮮"]) { return "G004" }
+        if has(["カクテル", "ウイスキー", "ワインバー", "ワイン", "バル"]) { return "G012" }
+        // 寿司・海鮮（和食 G004）
+        if has(["寿司", "鮨", "寿し", "刺身", "海鮮", "スシロー", "くら寿司", "回転寿司"]) { return "G004" }
+        // 和食 G004 ※「焼きそば/つけ麺」等は上で処理済み。「そば」は"近く"の意味と紛れるので漢字/専門語のみ拾う
+        if has(["蕎麦", "そば屋", "天ぷら", "てんぷら", "うなぎ", "鰻", "うどん", "丸亀", "和食", "懐石", "割烹", "牛丼", "吉野家", "すき家", "松屋"]) { return "G004" }
         return nil
+    }
+
+    /// プロンプトに**明示的に書かれたこだわり語**（個室・夜景・時間帯 等）を優先度順で拾う。否定語は除外。
+    static func explicitParticulars(for userPrompt: String?) -> [ParticularOption] {
+        guard let text = userPrompt, !text.isEmpty else { return [] }
+        var result: [ParticularOption] = []
+        func add(_ option: ParticularOption, _ words: [String]) {
+            guard !result.contains(option) else { return }
+            if mentions(words, in: text) { result.append(option) }
+        }
+        add(.privateRoom, ["個室"])
+        add(.nightView, ["夜景"])
+        add(.freeDrink, ["飲み放題", "のみ放題", "飲みほうだい"])
+        add(.freeFood, ["食べ放題", "たべ放題", "食べほうだい"])
+        add(.course, ["コース"])
+        add(.tatami, ["座敷"])
+        add(.horigotatsu, ["掘りごたつ", "掘り炬燵", "ほりごたつ"])
+        add(.charter, ["貸切", "貸し切り"])
+        add(.openAir, ["テラス", "屋外", "オープンエア", "オープンテラス"])
+        add(.wifi, ["電源", "コンセント", "wi-fi", "wifi", "ワイファイ", "作業", "勉強", "ノマド"])
+        add(.parking, ["駐車場", "車で", "パーキング"])
+        add(.pet, ["ペット", "犬連れ", "ドッグ"])
+        add(.nonSmoking, ["禁煙"])
+        add(.lunch, ["ランチ", "昼ごはん", "昼飯", "ひるめし"])
+        add(.midnight, ["深夜", "朝まで", "夜通し", "夜遅く"])
+        add(.child, ["子連れ", "子供", "こども"])
+        return result
     }
 }
 
@@ -200,26 +313,42 @@ extension RecommendationEngine {
         do {
             let response = try await session.respond(to: prompt, generating: AIRecommendation.self)
             var criteria = response.content.toCriteria()
+            // keyword衛生: 気分語・シチュエーション語が紛れていたら料理keywordとして使わない。
+            criteria.keyword = Self.cleanedKeyword(criteria.keyword)
 
-            // 決定的ガード1: プロンプトが既知のシチュエーション語（デート等）を含むなら、
-            // モデルの themeKind 判定に関わらずシチュエーション扱いに上書きする。
+            // 決定的ガード: プロンプトから「料理語→ジャンル」「シチュエーション語→既定こだわり」
+            // 「明示のこだわり語」を拾い、料理とこだわりを両立させて上書きする（正規化＋否定検出つき）。
+            // 料理とシチュエーションが混在（例「個室でデートで焼きそば」）しても、
+            // 料理（焼きそば＝G016）を活かしつつ、明示/場面のこだわり（個室）を重ねる。
+            let signals = Self.interpret(userPrompt)
+            let dishCode = signals.dishGenreCode
+            let situationParts = signals.situationParticulars
+            let explicitParticulars = signals.explicitParticulars
+
+            // こだわりは「明示的に書かれた語」を最優先、無ければシチュエーション既定を使う。
+            let resolvedParticulars = !explicitParticulars.isEmpty ? explicitParticulars : (situationParts ?? [])
+
             var overrodeSituation = false
             var overrodeDish = false
-            if let situationParts = Self.situationParticulars(for: userPrompt) {
+            if let dishCode {
+                // 料理語あり: ジャンルは辞書で確定（モデルの誤分類を上書き）。こだわりがあれば重ねる。
+                overrodeDish = true
+                overrodeSituation = !resolvedParticulars.isEmpty
+                // keyword は並び順で効くので、モデルのkeywordが空ならプロンプトを流用する。
+                let orderingKeyword = (criteria.keyword?.isEmpty == false) ? criteria.keyword : userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
+                criteria = RecommendationCriteria(genreCodes: [dishCode], isBroad: false, keyword: orderingKeyword, particulars: resolvedParticulars, reason: criteria.reason)
+            } else if situationParts != nil {
+                // 料理指定なしのシチュエーション: ジャンルで絞らず、こだわりで出す。
                 overrodeSituation = true
                 if let keyword = criteria.keyword, !keyword.isEmpty {
-                    // 「焼肉デート」等: 料理指定は残しつつ、場面のこだわりを重ねる。
-                    criteria = RecommendationCriteria(genreCodes: criteria.genreCodes, isBroad: criteria.isBroad, keyword: keyword, particulars: situationParts, reason: criteria.reason)
+                    // モデルが料理を拾っている場合は、そのジャンルを残しつつこだわりを重ねる。
+                    criteria = RecommendationCriteria(genreCodes: criteria.genreCodes, isBroad: criteria.isBroad, keyword: keyword, particulars: resolvedParticulars, reason: criteria.reason)
                 } else {
-                    // 「デート」等: ジャンルで絞らず、こだわりで出す。
-                    criteria = RecommendationCriteria(genreCodes: [], isBroad: false, keyword: nil, particulars: situationParts, reason: criteria.reason)
+                    criteria = RecommendationCriteria(genreCodes: [], isBroad: false, keyword: nil, particulars: resolvedParticulars, reason: criteria.reason)
                 }
-            } else if let dishCode = Self.dishGenreCode(for: userPrompt) {
-                // 決定的ガード2: 既知の料理語はジャンルを辞書で確定し、モデルの誤分類（焼きそば→焼肉）を上書き。
-                // keyword は並び順で効くので、モデルのkeywordが空ならプロンプトを流用する。
-                overrodeDish = true
-                let orderingKeyword = (criteria.keyword?.isEmpty == false) ? criteria.keyword : userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
-                criteria = RecommendationCriteria(genreCodes: [dishCode], isBroad: false, keyword: orderingKeyword, particulars: [], reason: criteria.reason)
+            } else if !explicitParticulars.isEmpty {
+                // 料理もシチュエーションも無いが、明示のこだわり（例「個室で」）がある: モデルのジャンルに重ねる。
+                criteria = RecommendationCriteria(genreCodes: criteria.genreCodes, isBroad: criteria.isBroad, keyword: criteria.keyword, particulars: explicitParticulars, reason: criteria.reason)
             }
 
             #if DEBUG
@@ -228,6 +357,7 @@ extension RecommendationEngine {
             print("🔮[AIおすすめ] いいね件数=\(likedShops.count) ジャンル=\(likedGenres)")
             print("🔮[AIおすすめ] 入力プロンプト:\n\(prompt)")
             print("🔮[AIおすすめ] モデル生成: themeKind=\(response.content.themeKind) primary=\(response.content.primaryGenre) breadth=\(response.content.breadth) keyword=\(response.content.keyword) vibes=\(response.content.vibes)")
+            print("🔮[AIおすすめ] 決定的解釈: dish=\(signals.dishGenreCode ?? "nil") situation=\(signals.situationParticulars?.map(\.rawValue) ?? []) explicit=\(signals.explicitParticulars.map(\.rawValue)) 否定=\(signals.hasNegation)")
             print("🔮[AIおすすめ] 採用条件(状況上書き=\(overrodeSituation) 料理上書き=\(overrodeDish)): genreCodes=\(criteria.genreCodes) broad=\(criteria.isBroad) keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
             #endif
             return criteria

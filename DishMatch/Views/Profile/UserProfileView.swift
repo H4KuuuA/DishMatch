@@ -49,6 +49,22 @@ struct UserProfileView: View {
                     }
                 }
 
+                #if DEBUG
+                Section("開発ツール") {
+                    NavigationLink {
+                        RecommendationEvalView()
+                    } label: {
+                        HStack {
+                            Image(systemName: "wand.and.stars")
+                                .foregroundStyle(.orange)
+                                .padding(.trailing)
+                            Text("AIおすすめの評価")
+                                .foregroundStyle(Color("FC"))
+                        }
+                    }
+                }
+                #endif
+
                 Section(""){
                     Button {
                         isShowLogoutConfirmation = true

@@ -269,7 +269,14 @@ final class RestaurantViewModel: ObservableObject {
             return ladder
         }
 
-        // 料理テーマ: ジャンル集合固定。こだわりは補助で多い→少ない（末尾から）緩める。keywordは並び順のみ。
+        // 料理テーマ: ジャンル集合固定。
+        // 希少な料理をドンピシャで出すため、keywordがあれば**最初にkeyword絞り込み段**を置く。
+        // ここで十分件数（しきい値）が取れればそれを採用、足りなければ以降の段（keywordは並び順のみ）へ緩める。
+        let hasKeyword = !(keyword ?? "").isEmpty
+        if hasKeyword {
+            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: true, particulars: Set(particulars), isBroad: isBroad))
+        }
+        // こだわりは補助で多い→少ない（末尾から）緩める。keywordは並び順のみ。
         var keep = particulars.count
         while keep > 0 {
             let subset = Set(particulars.prefix(keep))
@@ -326,7 +333,9 @@ final class RestaurantViewModel: ObservableObject {
             )
             genreTotal[code] = result.results.resultsAvailable
             genreCursor[code] = start + pageSize
-            let shops = result.results.shop.filter { self.passesBudgetCeiling($0) }
+            // 予算上限を超える店・既にいいね済みの店は出さない（同じ店の再提示を避ける）。
+            let likedIDs = Set(favoriteShops.map { $0.id })
+            let shops = result.results.shop.filter { self.passesBudgetCeiling($0) && !likedIDs.contains($0.id) }
             perGenre.append((code, shops))
         }
         return mergeByPreference(perGenre: perGenre, keyword: filter.keyword, isBroad: filter.isBroad, rankParticulars: filter.rankParticulars)
@@ -370,18 +379,18 @@ final class RestaurantViewModel: ObservableObject {
         return deck
     }
 
-    /// keyword一致・こだわり充足の多い店を上位へ寄せた並びを返す（順序は安定）。
-    /// keyword一致は強く（+10）、rankParticularsは1つ充足ごとに+1で加点する。
+    /// keyword一致・こだわり充足・写真ありで上位へ寄せた並びを返す（順序は安定）。
+    /// 重み: keyword一致 +100（最重要）＞ こだわり1つ +10 ＞ 写真あり +1（微調整）。
     private func orderDeck(_ shops: [Shop], keyword: String?, rankParticulars: [ParticularOption]) -> [Shop] {
         let trimmed = keyword?.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasKeyword = !(trimmed ?? "").isEmpty
-        // 並べ替える必要が無ければそのまま返す。
-        if !hasKeyword && rankParticulars.isEmpty { return shops }
+        // 写真ありは常に微加点するので、keyword/こだわりが無くても並べ替える価値がある。
 
         func score(_ shop: Shop) -> Int {
             var total = 0
-            if hasKeyword, let trimmed, shopMatchesKeyword(shop, trimmed) { total += 10 }
-            for option in rankParticulars where shopHasParticular(shop, option) { total += 1 }
+            if hasKeyword, let trimmed, shopMatchesKeyword(shop, trimmed) { total += 100 }
+            for option in rankParticulars where shopHasParticular(shop, option) { total += 10 }
+            if !shop.photo.pc.l.isEmpty { total += 1 } // 写真ありを気持ち上位に
             return total
         }
         // enumerated の offset を使って同点は元順を保つ（安定ソート）。
