@@ -37,12 +37,14 @@ struct FriendsListView: View {
                             Section("友達申請") {
                                 ForEach(friendsViewModel.incomingRequests) { request in
                                     requestRow(request)
+                                        .listRowSeparator(.hidden)
                                 }
                             }
                         }
                         Section {
                             ForEach(filteredFriends) { friend in
                                 friendLink(friend)
+                                    .listRowSeparator(.hidden) // 友達同士の区切り線は出さない（すっきりさせる）
                             }
                             .onDelete(perform: deleteFiltered)
                         }
