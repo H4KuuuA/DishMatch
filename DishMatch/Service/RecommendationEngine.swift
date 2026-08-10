@@ -172,6 +172,29 @@ final class RecommendationEngine: ObservableObject {
         if has(["寿司", "鮨", "寿し", "刺身", "天ぷら", "てんぷら", "うなぎ", "鰻", "そば", "蕎麦", "うどん", "和食", "懐石", "割烹", "海鮮"]) { return "G004" }
         return nil
     }
+
+    /// プロンプトに**明示的に書かれたこだわり語**（個室・夜景・飲み放題 等）を優先度順で拾う。
+    /// 「個室で焼きそば」のように、ユーザーが直接指定したこだわりを確実に反映するために使う。
+    static func explicitParticulars(for userPrompt: String?) -> [ParticularOption] {
+        guard let text = userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return [] }
+        let lowered = text.lowercased()
+        var result: [ParticularOption] = []
+        func add(_ option: ParticularOption, _ words: [String]) {
+            guard !result.contains(option) else { return }
+            if words.contains(where: { lowered.contains($0.lowercased()) }) { result.append(option) }
+        }
+        add(.privateRoom, ["個室"])
+        add(.nightView, ["夜景"])
+        add(.freeDrink, ["飲み放題", "のみ放題", "飲みほうだい"])
+        add(.freeFood, ["食べ放題", "たべ放題", "食べほうだい"])
+        add(.course, ["コース"])
+        add(.tatami, ["座敷", "掘りごたつ", "掘り炬燵"])
+        add(.charter, ["貸切", "貸し切り"])
+        add(.nonSmoking, ["禁煙"])
+        add(.lunch, ["ランチ"])
+        add(.child, ["子連れ", "子供", "こども"])
+        return result
+    }
 }
 
 private extension String {
@@ -201,25 +224,38 @@ extension RecommendationEngine {
             let response = try await session.respond(to: prompt, generating: AIRecommendation.self)
             var criteria = response.content.toCriteria()
 
-            // 決定的ガード1: プロンプトが既知のシチュエーション語（デート等）を含むなら、
-            // モデルの themeKind 判定に関わらずシチュエーション扱いに上書きする。
+            // 決定的ガード: プロンプトから「料理語→ジャンル」「シチュエーション語→既定こだわり」
+            // 「明示のこだわり語」を拾い、料理とこだわりを両立させて上書きする。
+            // 料理とシチュエーションが混在（例「個室でデートで焼きそば」）しても、
+            // 料理（焼きそば＝G016）を活かしつつ、明示/場面のこだわり（個室）を重ねる。
+            let dishCode = Self.dishGenreCode(for: userPrompt)
+            let situationParts = Self.situationParticulars(for: userPrompt)
+            let explicitParticulars = Self.explicitParticulars(for: userPrompt)
+
+            // こだわりは「明示的に書かれた語」を最優先、無ければシチュエーション既定を使う。
+            let resolvedParticulars = !explicitParticulars.isEmpty ? explicitParticulars : (situationParts ?? [])
+
             var overrodeSituation = false
             var overrodeDish = false
-            if let situationParts = Self.situationParticulars(for: userPrompt) {
+            if let dishCode {
+                // 料理語あり: ジャンルは辞書で確定（モデルの誤分類を上書き）。こだわりがあれば重ねる。
+                overrodeDish = true
+                overrodeSituation = !resolvedParticulars.isEmpty
+                // keyword は並び順で効くので、モデルのkeywordが空ならプロンプトを流用する。
+                let orderingKeyword = (criteria.keyword?.isEmpty == false) ? criteria.keyword : userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
+                criteria = RecommendationCriteria(genreCodes: [dishCode], isBroad: false, keyword: orderingKeyword, particulars: resolvedParticulars, reason: criteria.reason)
+            } else if situationParts != nil {
+                // 料理指定なしのシチュエーション: ジャンルで絞らず、こだわりで出す。
                 overrodeSituation = true
                 if let keyword = criteria.keyword, !keyword.isEmpty {
-                    // 「焼肉デート」等: 料理指定は残しつつ、場面のこだわりを重ねる。
-                    criteria = RecommendationCriteria(genreCodes: criteria.genreCodes, isBroad: criteria.isBroad, keyword: keyword, particulars: situationParts, reason: criteria.reason)
+                    // モデルが料理を拾っている場合は、そのジャンルを残しつつこだわりを重ねる。
+                    criteria = RecommendationCriteria(genreCodes: criteria.genreCodes, isBroad: criteria.isBroad, keyword: keyword, particulars: resolvedParticulars, reason: criteria.reason)
                 } else {
-                    // 「デート」等: ジャンルで絞らず、こだわりで出す。
-                    criteria = RecommendationCriteria(genreCodes: [], isBroad: false, keyword: nil, particulars: situationParts, reason: criteria.reason)
+                    criteria = RecommendationCriteria(genreCodes: [], isBroad: false, keyword: nil, particulars: resolvedParticulars, reason: criteria.reason)
                 }
-            } else if let dishCode = Self.dishGenreCode(for: userPrompt) {
-                // 決定的ガード2: 既知の料理語はジャンルを辞書で確定し、モデルの誤分類（焼きそば→焼肉）を上書き。
-                // keyword は並び順で効くので、モデルのkeywordが空ならプロンプトを流用する。
-                overrodeDish = true
-                let orderingKeyword = (criteria.keyword?.isEmpty == false) ? criteria.keyword : userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
-                criteria = RecommendationCriteria(genreCodes: [dishCode], isBroad: false, keyword: orderingKeyword, particulars: [], reason: criteria.reason)
+            } else if !explicitParticulars.isEmpty {
+                // 料理もシチュエーションも無いが、明示のこだわり（例「個室で」）がある: モデルのジャンルに重ねる。
+                criteria = RecommendationCriteria(genreCodes: criteria.genreCodes, isBroad: criteria.isBroad, keyword: criteria.keyword, particulars: explicitParticulars, reason: criteria.reason)
             }
 
             #if DEBUG
