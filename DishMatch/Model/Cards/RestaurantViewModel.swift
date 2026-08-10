@@ -148,9 +148,10 @@ final class RestaurantViewModel: ObservableObject {
     /// 今日の気分（任意）といいね履歴からAIに検索条件を提案させ、「段階的リラックス」で検索する。
     ///
     /// AIの条件をそのままANDで全部かけると結果が激減する（気分フレーズのkeywordはほぼ0件になる）。
-    /// そこで「厳しい条件→緩い条件」の順に検索し、十分な件数(minRecommendationResults)が返った
-    /// 最初の段階を採用する。こうして条件が満たせる時はAIの提案を効かせ、足りない時だけ緩めて
-    /// 常に十分な店舗数を確保する。AIが使えない場合は無条件（最大件数）になる。
+    /// そこで keyword・こだわり を厳しい順に緩めて検索する。ただし**ジャンルは外さない**
+    /// （ユーザーの意図を守り、関係ないお店＝別ジャンルを混ぜないため）。ジャンルだけの段階で
+    /// 1件でもあればそれを採用し、ジャンルすら0件の時だけ全ジャンルへフォールバックして空表示を避ける。
+    /// AIが使えない・ジャンル無しの場合は無条件（全ジャンル）になる。
     /// - Parameter userPrompt: 今日の気分・リクエスト。空・nil なら履歴のみで判断する。
     func applyRecommendation(userPrompt: String?) async {
         guard !isLoading else { return }
@@ -190,6 +191,11 @@ final class RestaurantViewModel: ObservableObject {
                 chosenShops = result.results.shop.filter { self.passesBudgetCeiling($0) }
                 chosenTotal = result.results.resultsAvailable
                 if result.results.resultsAvailable >= Self.minRecommendationResults { break }
+                // ジャンルだけの段階で1件でもあれば採用する。ユーザーの意図（ジャンル）を守り、
+                // 関係ないお店を混ぜないため、全ジャンルへは落とさない。ジャンルすら0件の時だけ
+                // 次段（全ジャンル）へフォールバックして空表示を避ける。
+                let isGenreOnly = attempt.genreCode != nil && attempt.keyword == nil && attempt.particulars.isEmpty
+                if isGenreOnly && result.results.resultsAvailable > 0 { break }
             }
         } catch {
             print("エラー: \(error.localizedDescription)")

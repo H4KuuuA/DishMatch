@@ -25,6 +25,9 @@ struct DiscoverySettingsView: View {
     /// 今日の気分・リクエスト（AIへの入力）。任意。
     @State private var moodPrompt: String = ""
 
+    /// 「探す」実行中（AI推論→API取得）。完了までシートに留まりローディングを表示する。
+    @State private var isSearching = false
+
     /// 入力の敷居を下げるためのサジェスト。タップで気分欄に反映する。
     private let moodSuggestions = [
         "安く飲みたい", "デートで静かに", "一人でサッと",
@@ -110,6 +113,10 @@ struct DiscoverySettingsView: View {
                 ErrorBannerView(errorQueue: errorQueue)
                     .padding(.top, 8)
             }
+            .overlay {
+                // 探す実行中は、AIが推論していることが分かるローディングを重ねる
+                if isSearching { searchingOverlay }
+            }
             .navigationTitle("今日のお店を探す")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -121,6 +128,7 @@ struct DiscoverySettingsView: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.orange)
                     }
+                    .disabled(isSearching)
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
@@ -179,18 +187,51 @@ struct DiscoverySettingsView: View {
     /// 「探す」が押された時の処理。
     /// - エリア指定モードで都道府県が未選択なら、静かに現在地検索へフォールバックして
     ///   「選んだのに反映されない」ように見えるのを避けるため、保存せずエラーを表示する。
-    /// - 気分（プロンプト）といいね履歴からAIに検索条件を提案させ、その条件で再検索する。
-    ///   AI生成には数秒かかりうるためシートは即座に閉じ、カードは条件が決まり次第更新される。
+    /// - 気分（プロンプト）といいね履歴からAIに検索条件を提案させ、その条件で検索する。
+    ///   推論→API取得が終わるまでシートに留まり、AIが考えていることが分かるローディングを見せてから
+    ///   シートを閉じてホームへ戻る（結果が揃った状態で戻れるようにする）。
     private func applyAndSearch() {
         if settings.searchLocationMode == .area && settings.selectedServiceAreaCode == nil {
             errorQueue.report(title: "都道府県を選択してください", message: "エリアを指定する場合は、検索する都道府県を選んでください。")
             return
         }
-        viewID = UUID() // カードスタックの表示状態をリセット
         let trimmed = moodPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let promptOrNil = trimmed.isEmpty ? nil : trimmed
-        Task { await restaurantViewModel.applyRecommendation(userPrompt: promptOrNil) }
-        dismiss()
+        isSearching = true
+        Task {
+            await restaurantViewModel.applyRecommendation(userPrompt: promptOrNil)
+            viewID = UUID() // カードスタックの表示状態をリセット
+            isSearching = false
+            dismiss()
+        }
+    }
+
+    /// 探す実行中のローディング表示。AI推論中と検索中で文言を変え、AIが動いていることを伝える。
+    private var searchingOverlay: some View {
+        ZStack {
+            Color(.systemBackground).opacity(0.7).ignoresSafeArea()
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.orange)
+                Text(searchingMessage)
+                    .font(.subheadline.weight(.medium))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 8)
+            }
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        }
+    }
+
+    /// ローディングの文言。AI推論中はAIが考えている旨を出す。
+    private var searchingMessage: String {
+        if restaurantViewModel.isRecommending && restaurantViewModel.isRecommendationAvailable {
+            return "✨ AIがあなたの好みからお店を考えています…"
+        } else {
+            return "お店を探しています…"
+        }
     }
 }
 
