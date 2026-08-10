@@ -63,6 +63,7 @@ struct UserProfileView: View {
                     }
                 }
             }
+            .padding(.bottom, 48)
         }
         .sheet(isPresented: $isShowEditProfile) {
             EditUserProfileView()
