@@ -137,6 +137,41 @@ final class RecommendationEngine: ObservableObject {
         if has(["子連れ", "子供", "こども", "家族", "ファミリー"]) { return [.child, .tatami] }
         return nil
     }
+
+    /// プロンプトが既知の「料理語」を含むなら、その料理に対応するHotPepperジャンルコードを返す。
+    /// 小型モデルが「焼きそば→焼肉」のように字面で誤分類するのを防ぐ決定的ガード。無ければ nil。
+    /// 「焼きそば」を粉ものとして先に判定するなど、紛らわしい語は並び順に注意している。
+    static func dishGenreCode(for userPrompt: String?) -> String? {
+        guard let text = userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        let lowered = text.lowercased()
+        func has(_ words: [String]) -> Bool { words.contains { lowered.contains($0.lowercased()) } }
+
+        // 粉もの（お好み焼き・もんじゃ G016）※「焼きそば」を「焼肉」より先に確実に拾う
+        if has(["焼きそば", "焼そば", "やきそば", "お好み焼き", "おこのみやき", "もんじゃ", "たこ焼き", "たこやき"]) { return "G016" }
+        // ラーメン G013
+        if has(["ラーメン", "らーめん", "拉麺", "つけ麺", "油そば", "家系", "二郎"]) { return "G013" }
+        // 焼肉・ホルモン G008
+        if has(["焼肉", "焼き肉", "やきにく", "ホルモン", "カルビ", "ジンギスカン"]) { return "G008" }
+        // 韓国料理 G017
+        if has(["韓国", "サムギョプサル", "チヂミ", "キンパ", "ビビンバ", "スンドゥブ", "トッポギ"]) { return "G017" }
+        // 中華 G007
+        if has(["中華", "餃子", "ぎょうざ", "麻婆", "点心", "小籠包", "町中華", "四川", "台湾料理"]) { return "G007" }
+        // イタリアン・フレンチ G006
+        if has(["ピザ", "ピッツァ", "パスタ", "イタリアン", "リゾット", "フレンチ"]) { return "G006" }
+        // 洋食 G005
+        if has(["ハンバーグ", "オムライス", "ステーキ", "洋食", "グラタン", "ハンバーガー"]) { return "G005" }
+        // カフェ・スイーツ G014
+        if has(["コーヒー", "珈琲", "カフェ", "パンケーキ", "ケーキ", "パフェ", "スイーツ", "甘味", "抹茶", "タピオカ"]) { return "G014" }
+        // 焼き鳥・串（居酒屋 G001）
+        if has(["焼き鳥", "焼鳥", "やきとり", "串カツ", "串揚げ", "もつ煮", "もつ鍋"]) { return "G001" }
+        // アジア・エスニック G009
+        if has(["タイ料理", "ベトナム", "エスニック", "インドカレー", "ガパオ", "フォー", "ナン", "スパイスカレー"]) { return "G009" }
+        // バー・カクテル G012
+        if has(["カクテル", "ウイスキー", "ワインバー"]) { return "G012" }
+        // 和食 G004 ※「焼きそば/つけ麺」等は上で処理済みなので「そば」はここで蕎麦として拾える
+        if has(["寿司", "鮨", "寿し", "刺身", "天ぷら", "てんぷら", "うなぎ", "鰻", "そば", "蕎麦", "うどん", "和食", "懐石", "割烹", "海鮮"]) { return "G004" }
+        return nil
+    }
 }
 
 private extension String {
@@ -166,9 +201,10 @@ extension RecommendationEngine {
             let response = try await session.respond(to: prompt, generating: AIRecommendation.self)
             var criteria = response.content.toCriteria()
 
-            // 決定的ガード: プロンプトが既知のシチュエーション語（デート等）を含むなら、
+            // 決定的ガード1: プロンプトが既知のシチュエーション語（デート等）を含むなら、
             // モデルの themeKind 判定に関わらずシチュエーション扱いに上書きする。
             var overrodeSituation = false
+            var overrodeDish = false
             if let situationParts = Self.situationParticulars(for: userPrompt) {
                 overrodeSituation = true
                 if let keyword = criteria.keyword, !keyword.isEmpty {
@@ -178,6 +214,12 @@ extension RecommendationEngine {
                     // 「デート」等: ジャンルで絞らず、こだわりで出す。
                     criteria = RecommendationCriteria(genreCodes: [], isBroad: false, keyword: nil, particulars: situationParts, reason: criteria.reason)
                 }
+            } else if let dishCode = Self.dishGenreCode(for: userPrompt) {
+                // 決定的ガード2: 既知の料理語はジャンルを辞書で確定し、モデルの誤分類（焼きそば→焼肉）を上書き。
+                // keyword は並び順で効くので、モデルのkeywordが空ならプロンプトを流用する。
+                overrodeDish = true
+                let orderingKeyword = (criteria.keyword?.isEmpty == false) ? criteria.keyword : userPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
+                criteria = RecommendationCriteria(genreCodes: [dishCode], isBroad: false, keyword: orderingKeyword, particulars: [], reason: criteria.reason)
             }
 
             #if DEBUG
@@ -186,7 +228,7 @@ extension RecommendationEngine {
             print("🔮[AIおすすめ] いいね件数=\(likedShops.count) ジャンル=\(likedGenres)")
             print("🔮[AIおすすめ] 入力プロンプト:\n\(prompt)")
             print("🔮[AIおすすめ] モデル生成: themeKind=\(response.content.themeKind) primary=\(response.content.primaryGenre) breadth=\(response.content.breadth) keyword=\(response.content.keyword) vibes=\(response.content.vibes)")
-            print("🔮[AIおすすめ] 採用条件(シチュエーション上書き=\(overrodeSituation)): genreCodes=\(criteria.genreCodes) broad=\(criteria.isBroad) keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
+            print("🔮[AIおすすめ] 採用条件(状況上書き=\(overrodeSituation) 料理上書き=\(overrodeDish)): genreCodes=\(criteria.genreCodes) broad=\(criteria.isBroad) keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
             #endif
             return criteria
         } catch {
