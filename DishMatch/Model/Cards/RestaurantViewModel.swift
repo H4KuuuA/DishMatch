@@ -70,6 +70,10 @@ final class RestaurantViewModel: ObservableObject {
     private var genreCursor: [String: Int] = [:]
     /// ジャンル別のresultsAvailable（総件数）。カーソルが総件数を超えたらそのジャンルは打ち止め。
     private var genreTotal: [String: Int] = [:]
+    /// リラックスの全段（厳しい→緩い）。ページングで現レベルを取り切ったら次の段へ降りて補充する。
+    private var recommendationLadder: [AppliedFilter] = [.neutral]
+    /// いま適用中の段のインデックス（`recommendationLadder`内）。
+    private var ladderIndex = 0
     /// おすすめ検索で「十分な件数」とみなすしきい値。これ未満なら条件を1つ緩めて再検索する。
     /// カードスタックを常に満杯（1ページ＝20枚）にしたいので1ページ分に設定している。
     /// 大きいほど件数重視で条件を緩めやすく、小さいほど条件を残しやすい（調整可）。
@@ -132,6 +136,9 @@ final class RestaurantViewModel: ObservableObject {
             isFetchingNextPage = false
         }
         appliedFilter = filter
+        // 通常ディスカバリー/リロードは単一段。ページングは同じ条件の続きを取り続ける。
+        recommendationLadder = [filter]
+        ladderIndex = 0
         resetCursors(for: filter)
 
         let (range, serviceAreaCode) = await resolveLocationParams()
@@ -177,14 +184,15 @@ final class RestaurantViewModel: ObservableObject {
         let budgetParam = settings.budgetAPICode
 
         // ジャンル集合を固定したまま緩める段（厳しい→緩い）。件数がしきい値以上になった最初の段を採用。
+        // 全段は保持し、ページングで現レベルを取り切ったら次の段へ降りて補充する（fetchNextPage）。
         let ladder = relaxationLadder(for: criteria)
-        var chosen = ladder[ladder.count - 1]
+        var chosenIndex = ladder.count - 1
         var chosenDeck: [Shop] = []
         do {
             for (index, filter) in ladder.enumerated() {
                 resetCursors(for: filter)
                 let deck = try await fetchAndMerge(filter: filter, range: range, area: serviceAreaCode, budget: budgetParam)
-                chosen = filter
+                chosenIndex = index
                 chosenDeck = deck
                 // 集合全体のAPI総件数がしきい値以上なら、この段で確定。
                 let totalAvailable = genreTotal.values.reduce(0, +)
@@ -197,11 +205,14 @@ final class RestaurantViewModel: ObservableObject {
             return
         }
 
-        appliedFilter = chosen
+        recommendationLadder = ladder
+        ladderIndex = chosenIndex
+        appliedFilter = ladder[chosenIndex]
         // 関連度の高い順（deckの先頭）を最前面（配列末尾）に置くため反転する。
         shopList = chosenDeck.reversed()
         currentPage = 1
-        hasMorePages = filterHasMore()
+        // 現レベルに続きがある、または次のレベルがあるなら、まだ補充できる。
+        hasMorePages = filterHasMore() || ladderIndex < recommendationLadder.count - 1
     }
 
     /// 現在地/エリア指定に応じた range と serviceAreaCode を解決する。
@@ -422,15 +433,15 @@ final class RestaurantViewModel: ObservableObject {
         return bracket.priceRank <= settings.selectedBudget.priceRank
     }
 
-    /// 次ページを取得してカードスタックに継ぎ足す。1ページ目で採用したフィルタ（ジャンル集合）を
-    /// そのまま引き継ぎ、ジャンル別カーソルの続きを取得・加重マージして前方（＝スタック下方）へ挿入する。
+    /// 次ページを取得してカードスタックに継ぎ足す。現レベルに続きがあればその続きを、
+    /// 取り切っていたら次のレベル（より緩い段）へ降りて取得する。カードが尽きないよう、
+    /// 実際に新しいお店を1件でも足せるまで（またはレベルを全て取り切るまで）繰り返す。
     func fetchNextPage() {
         guard !isLoading, !isFetchingNextPage else { return }
-        guard filterHasMore() else {
+        guard hasMorePages else {
             print("⚠️ すべてのデータを取得済みです")
             return
         }
-        let filter = appliedFilter ?? .neutral
         isFetchingNextPage = true
 
         Task {
@@ -439,18 +450,47 @@ final class RestaurantViewModel: ObservableObject {
                 // ページング時は位置情報の許可要求・エラー報告をしない（多重報告を避ける）。
                 let (range, serviceAreaCode) = await resolveLocationParams(requestPermission: false)
                 let budgetParam = settings.budgetAPICode
-                let more = try await fetchAndMerge(filter: filter, range: range, area: serviceAreaCode, budget: budgetParam)
-                let existing = Set(shopList.map { $0.id })
-                let newOnes = more.filter { !existing.contains($0.id) }
-                // 新ページは既存より関連度が低い。前方（＝最前面から遠い側）へ、反転して挿入する。
-                shopList.insert(contentsOf: newOnes.reversed(), at: 0)
-                currentPage += 1
-                hasMorePages = filterHasMore()
+
+                var added = 0
+                var attempts = 0
+                // 空ページ（既出とだぶってnewOnesが0）でも止まらないよう、少し粘って補充する。
+                while added == 0 && attempts < 6 {
+                    attempts += 1
+                    // 現レベルを取り切っていたら次のレベルへ降りる。もう無ければ終了。
+                    if !filterHasMore() {
+                        guard advanceToNextLevel() else {
+                            hasMorePages = false
+                            break
+                        }
+                    }
+                    let filter = appliedFilter ?? .neutral
+                    let more = try await fetchAndMerge(filter: filter, range: range, area: serviceAreaCode, budget: budgetParam)
+                    let existing = Set(shopList.map { $0.id })
+                    let newOnes = more.filter { !existing.contains($0.id) }
+                    if !newOnes.isEmpty {
+                        // 新ページは既存より関連度が低い。前方（＝最前面から遠い側）へ、反転して挿入する。
+                        shopList.insert(contentsOf: newOnes.reversed(), at: 0)
+                        currentPage += 1
+                        added = newOnes.count
+                    }
+                }
+                hasMorePages = filterHasMore() || ladderIndex < recommendationLadder.count - 1
             } catch {
                 print("エラー: \(error.localizedDescription)")
                 lastError = AppError.from(error, fallbackTitle: "続きのお店を読み込めませんでした")
             }
         }
+    }
+
+    /// 次のリラックス段（より緩い条件）へ降りてカーソルをリセットする。もう段が無ければ false。
+    private func advanceToNextLevel() -> Bool {
+        guard ladderIndex < recommendationLadder.count - 1 else { return false }
+        ladderIndex += 1
+        let next = recommendationLadder[ladderIndex]
+        appliedFilter = next
+        resetCursors(for: next)
+        print("DEBUG 📌: 次のレベルへ降下 index=\(ladderIndex) genreCodes=\(next.genreCodes) particulars=\(next.particulars.map(\.rawValue))")
+        return true
     }
 
     /// リストの最後の5つ前で次ページを取得
