@@ -23,6 +23,11 @@ final class RestaurantViewModel: ObservableObject {
     /// 表示後はnilに戻す
     @Published var friendMatch: FriendMatch?
 
+    /// AIが検索条件を生成中かどうか（「探す」ボタンのローディング表示に使う）
+    @Published private(set) var isRecommending = false
+    /// 直近のAIおすすめ理由（UI表示用）。AIを使わなかった場合は nil。
+    @Published private(set) var recommendationReason: String?
+
     /// 直前のスワイプを取り消せるかどうか（「戻す」ボタンの有効/無効に使う）
     @Published private(set) var canUndoLastSwipe = false
     /// 直近のAPIエラー。位置情報取得と店舗取得が別々に失敗しうるため、
@@ -35,6 +40,10 @@ final class RestaurantViewModel: ObservableObject {
     private let maxDismissedShops = 5
     private let apiClient = APIClient()
     private let settings = DiscoverySettings.shared
+    /// オンデバイスAIで検索条件を提案するエンジン。非対応OS/端末では nil を返す。
+    private let recommendationEngine = RecommendationEngine()
+    /// AIが提案した現在の検索条件（ジャンル・キーワード・こだわり）。nilなら絞り込まない発見になる。
+    private var aiCriteria: RecommendationCriteria?
     private let friendsViewModel: FriendsViewModel
     /// いいね・「行った」状態の保存先。ログイン中は`RemoteFavoritesRepository`を渡す。
     /// nil の場合（プレビュー等）は同期せずメモリ上のみで動作する。
@@ -87,8 +96,10 @@ final class RestaurantViewModel: ObservableObject {
         isFetchingNextPage = true
         // こだわらない場合は nil
         let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
-        // 呼び出し元から明示的に指定がなければディスカバリー設定のジャンルを使う
-        let genreParam = genre ?? settings.selectedGenreCode
+        // ジャンル・キーワード・こだわりはAIが提案した条件を使う（無ければ絞り込まない＝ニュートラルな発見）
+        let genreParam = genre ?? aiCriteria?.genreCode
+        let keywordParam = keyword ?? aiCriteria?.keyword
+        let particularsParam = aiCriteria.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
 
         Task {
             do {
@@ -112,7 +123,7 @@ final class RestaurantViewModel: ObservableObject {
                     serviceAreaCode = settings.selectedServiceAreaCode
                 }
                 // API からデータ取得
-                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genreParam, budget: budgetParam, particulars: settings.particulars, serviceAreaCode: serviceAreaCode, startIndex: startIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keywordParam, range: range, genre: genreParam, budget: budgetParam, particulars: particularsParam, serviceAreaCode: serviceAreaCode, startIndex: startIndex)
 
                 DispatchQueue.main.async {
                     if startIndex == 1 {
@@ -138,6 +149,21 @@ final class RestaurantViewModel: ObservableObject {
         }
     }
 
+    /// この端末でオンデバイスAIおすすめが使えるか（iOS 26+ かつ Apple Intelligence 対応端末）。
+    var isRecommendationAvailable: Bool { recommendationEngine.isAvailable }
+
+    /// 今日の気分（任意）といいね履歴からAIに検索条件を提案させ、その条件で再検索する。
+    /// AIが使えない・失敗した場合は条件をクリアし、ニュートラルな発見（絞り込みなし）にフォールバックする。
+    /// - Parameter userPrompt: 今日の気分・リクエスト。空・nil なら履歴のみで判断する。
+    func applyRecommendation(userPrompt: String?) async {
+        isRecommending = true
+        let criteria = await recommendationEngine.recommend(userPrompt: userPrompt, likedShops: favoriteShops)
+        aiCriteria = criteria
+        recommendationReason = criteria?.reason
+        isRecommending = false
+        fetchShops(startIndex: 1)
+    }
+
     /// ページング用のデータを API から取得する
     func fetchNextPage(keyword: String? = nil, genre: String? = nil, budget: String? = nil) {
         guard !isLoading, !isFetchingNextPage else { return }
@@ -153,7 +179,10 @@ final class RestaurantViewModel: ObservableObject {
         
         // こだわらない場合は nil
         let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
-        let genreParam = genre ?? settings.selectedGenreCode
+        // ページングでもAIが提案した条件を引き継ぐ（1ページ目と同じ絞り込みで続きを取る）
+        let genreParam = genre ?? aiCriteria?.genreCode
+        let keywordParam = keyword ?? aiCriteria?.keyword
+        let particularsParam = aiCriteria.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
 
         Task {
             do {
@@ -167,7 +196,7 @@ final class RestaurantViewModel: ObservableObject {
                     range = nil
                     serviceAreaCode = settings.selectedServiceAreaCode
                 }
-                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genreParam, budget: budgetParam, particulars: settings.particulars, serviceAreaCode: serviceAreaCode, startIndex: nextStartIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keywordParam, range: range, genre: genreParam, budget: budgetParam, particulars: particularsParam, serviceAreaCode: serviceAreaCode, startIndex: nextStartIndex)
 
                 DispatchQueue.main.async {
                     self.shopList.insert(contentsOf: result.results.shop, at: 0)
