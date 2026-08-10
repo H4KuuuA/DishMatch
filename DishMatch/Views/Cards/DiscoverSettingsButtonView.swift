@@ -24,11 +24,11 @@ struct DiscoverSettingsButtonView: View {
                 Text("探す")
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
+            .foregroundStyle(.orange)
             .padding(.vertical, 10)
             .padding(.horizontal, 18)
             // マテリアル（iOS26 では Liquid Glass）によるガラス風の背景。
-            .liquidGlassBackground(in: Capsule(), tint: .orange)
+            .liquidGlassBackground(in: Capsule(), tint: .clear)
         }
         .buttonStyle(.plain)
     }
