@@ -8,19 +8,37 @@
 
 import SwiftUI
 
+/// 「今日のお店を探す」シート。
+/// 以前は地域・予算に加えてジャンル・こだわりも手動で絞り込んでいたが、それらは「見つける」体験に
+/// 寄ってしまうため撤去し、AI（オンデバイス）に任せることにした。ここでユーザーが決めるのは
+/// 「制約（地域・予算）」と「今日の気分（プロンプト）」だけ。ジャンル・こだわり・キーワードは
+/// いいね履歴と気分からAIが提案する。
 struct DiscoverySettingsView: View {
     @Environment(\.dismiss) var dismiss
     // シングルトンインスタンスを @ObservedObject として利用
     @ObservedObject private var settings = DiscoverySettings.shared
-    @ObservedObject private var genreCatalog = GenreCatalog.shared
     @ObservedObject private var areaCatalog = AreaCatalog.shared
     @StateObject private var errorQueue = ErrorQueue()
     @ObservedObject var restaurantViewModel: RestaurantViewModel
     @Binding var viewID: UUID // ビュー更新用の識別子
 
+    /// 今日の気分・リクエスト（AIへの入力）。任意。
+    @State private var moodPrompt: String = ""
+
+    /// 入力の敷居を下げるためのサジェスト。タップで気分欄に反映する。
+    private let moodSuggestions = [
+        "安く飲みたい", "デートで静かに", "一人でサッと",
+        "がっつり食べたい", "記念日に", "みんなでワイワイ"
+    ]
+
     var body: some View {
         NavigationView {
             Form {
+                // 今日の気分（AI対応端末のみ主役として最上部に表示）
+                if restaurantViewModel.isRecommendationAvailable {
+                    moodSection
+                }
+
                 // 検索方法（現在地 or エリア指定）
                 Section {
                     Picker("検索方法", selection: $settings.searchLocationMode) {
@@ -80,58 +98,22 @@ struct DiscoverySettingsView: View {
                     }
                     .pickerStyle(MenuPickerStyle())
                 }
-
-                // ジャンル設定
-                Section {
-                    if genreCatalog.isLoading && genreCatalog.genres.isEmpty {
-                        HStack {
-                            Text("ジャンル")
-                            Spacer()
-                            ProgressView()
-                        }
-                    } else {
-                        Picker("ジャンル", selection: $settings.selectedGenreCode) {
-                            Text("こだわらない").tag(String?.none)
-                            ForEach(genreCatalog.genres) { genre in
-                                Text(genre.name).tag(String?.some(genre.code))
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
-                    }
-                }
-
-                // こだわり設定（最大5個までという制約が伝わるよう、チップ形式でカウンター付き表示にする）
-                Section {
-                    ForEach(ParticularCategory.allCases) { category in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(category.rawValue)
-                                .font(.caption)
-                                .foregroundStyle(.gray)
-                            particularChipsGrid(for: category)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                } header: {
-                    particularsHeader
-                } footer: {
-                    Text("こだわりは最大\(DiscoverySettings.maxParticularsCount)個まで選べます。絞り込みすぎず、思いがけない出会いの余地を残しましょう。")
-                }
             }
             .overlay(alignment: .top) {
-                // ジャンル取得とエリア取得は独立した処理で同時に失敗しうるため、
-                // .alertではなくキュー表示できるErrorBannerViewを使う
+                // エリア取得が失敗しうるため、.alertではなくキュー表示できるErrorBannerViewを使う
                 ErrorBannerView(errorQueue: errorQueue)
                     .padding(.top, 8)
             }
-            .navigationTitle("ディスカバリー設定")
+            .navigationTitle("今日のお店を探す")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        applyAndDismiss()
+                        applyAndSearch()
                     } label: {
-                        Text("完了")
-                            .foregroundColor(.blue)
+                        Text("探す")
+                            .fontWeight(.semibold)
+                            .foregroundColor(.orange)
                     }
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -145,13 +127,7 @@ struct DiscoverySettingsView: View {
             }
         }
         .onAppear {
-            genreCatalog.loadIfNeeded()
             areaCatalog.loadIfNeeded()
-        }
-        .onChange(of: genreCatalog.lastError) { _, newValue in
-            if let newValue {
-                errorQueue.report(newValue)
-            }
         }
         .onChange(of: areaCatalog.lastError) { _, newValue in
             if let newValue {
@@ -161,76 +137,57 @@ struct DiscoverySettingsView: View {
         .tint(.orange)
     }
 
-    /// 「完了」が押された時の処理。
-    /// - `.id(viewID)` + `.onChange(of: viewID)`という間接的な仕組みだけに頼ると、
-    ///   `.id()`によるView再構築のタイミングと絡んで`onChange`が確実に発火しないことがあるため、
-    ///   ここで`fetchShops`を直接呼び出して再検索を確定させる
-    /// - エリア指定モードで都道府県が未選択のまま完了すると、静かに現在地検索へ
-    ///   フォールバックしてしまい「都道府県を選んだのに反映されない」ように見えるため、
-    ///   その場合は保存せずエラーを表示する
-    private func applyAndDismiss() {
+    /// 今日の気分入力欄。AIがいいね履歴と合わせて検索条件を提案する。
+    private var moodSection: some View {
+        Section {
+            TextField("どんな気分？（例: デートで静かに飲みたい）", text: $moodPrompt, axis: .vertical)
+                .lineLimit(1...3)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(moodSuggestions, id: \.self) { suggestion in
+                        Button {
+                            moodPrompt = suggestion
+                        } label: {
+                            Text(suggestion)
+                                .font(.caption)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.orange.opacity(0.12))
+                                .foregroundStyle(.orange)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 0))
+        } header: {
+            Label("今日の気分", systemImage: "sparkles")
+        } footer: {
+            Text("入力すると、あなたのいいね傾向と合わせてAIがお店を探します。空欄のままでもOKです。")
+        }
+    }
+
+    /// 「探す」が押された時の処理。
+    /// - エリア指定モードで都道府県が未選択なら、静かに現在地検索へフォールバックして
+    ///   「選んだのに反映されない」ように見えるのを避けるため、保存せずエラーを表示する。
+    /// - 気分（プロンプト）といいね履歴からAIに検索条件を提案させ、その条件で再検索する。
+    ///   AI生成には数秒かかりうるためシートは即座に閉じ、カードは条件が決まり次第更新される。
+    private func applyAndSearch() {
         if settings.searchLocationMode == .area && settings.selectedServiceAreaCode == nil {
             errorQueue.report(title: "都道府県を選択してください", message: "エリアを指定する場合は、検索する都道府県を選んでください。")
             return
         }
         viewID = UUID() // カードスタックの表示状態をリセット
-        restaurantViewModel.fetchShops(startIndex: 1)
+        let trimmed = moodPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let promptOrNil = trimmed.isEmpty ? nil : trimmed
+        Task { await restaurantViewModel.applyRecommendation(userPrompt: promptOrNil) }
         dismiss()
     }
-
-    /// 「こだわり」セクションの見出し。選択数/上限を常に見えるようにする
-    private var particularsHeader: some View {
-        HStack {
-            Text("こだわり")
-                .font(.headline)
-                .foregroundColor(.primary)
-            Spacer()
-            Text("\(settings.selectedParticulars.count) / \(DiscoverySettings.maxParticularsCount)")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(settings.isParticularsLimitReached ? Color.orange : Color.gray)
-        }
-    }
-
-    /// カテゴリごとのこだわり項目をタグ状に折り返して並べる
-    private func particularChipsGrid(for category: ParticularCategory) -> some View {
-        let options = ParticularOption.allCases.filter { $0.category == category }
-        let columns = [GridItem(.adaptive(minimum: 104), spacing: 8)]
-        return LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
-            ForEach(options) { option in
-                particularChip(option)
-            }
-        }
-    }
-
-    /// 選択中はオレンジで塗りつぶし、上限到達時の未選択項目は薄くしてタップ不可にする
-    private func particularChip(_ option: ParticularOption) -> some View {
-        let isSelected = settings.selectedParticulars.contains(option)
-        let isDisabled = !isSelected && settings.isParticularsLimitReached
-
-        return Button {
-            settings.toggleParticular(option)
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: option.systemImage)
-                    .font(.caption2)
-                Text(option.label)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .frame(maxWidth: .infinity)
-            .background(isSelected ? Color.orange : Color.gray.opacity(0.15))
-            .foregroundStyle(isSelected ? Color.white : (isDisabled ? Color.gray.opacity(0.4) : Color.primary))
-            .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(isDisabled)
-        .animation(.easeOut(duration: 0.15), value: isSelected)
-    }
 }
+
 #Preview {
     DiscoverySettingsView(restaurantViewModel: RestaurantViewModel(friendsViewModel: FriendsViewModel()), viewID: .constant(UUID()))
 }

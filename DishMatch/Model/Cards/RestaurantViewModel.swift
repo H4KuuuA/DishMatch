@@ -7,6 +7,13 @@
 
 import Foundation
 
+/// HotPepper検索へ実際に適用する絞り込み条件。AIおすすめの「段階的リラックス」で決まる。
+struct AppliedFilter {
+    var genreCode: String?
+    var keyword: String?
+    var particulars: Set<ParticularOption>
+}
+
 @MainActor
 final class RestaurantViewModel: ObservableObject {
     @Published var shopList: [Shop] = []
@@ -23,6 +30,11 @@ final class RestaurantViewModel: ObservableObject {
     /// 表示後はnilに戻す
     @Published var friendMatch: FriendMatch?
 
+    /// AIが検索条件を生成中かどうか（「探す」ボタンのローディング表示に使う）
+    @Published private(set) var isRecommending = false
+    /// 直近のAIおすすめ理由（UI表示用）。AIを使わなかった場合は nil。
+    @Published private(set) var recommendationReason: String?
+
     /// 直前のスワイプを取り消せるかどうか（「戻す」ボタンの有効/無効に使う）
     @Published private(set) var canUndoLastSwipe = false
     /// 直近のAPIエラー。位置情報取得と店舗取得が別々に失敗しうるため、
@@ -35,6 +47,12 @@ final class RestaurantViewModel: ObservableObject {
     private let maxDismissedShops = 5
     private let apiClient = APIClient()
     private let settings = DiscoverySettings.shared
+    /// オンデバイスAIで検索条件を提案するエンジン。非対応OS/端末では nil を返す。
+    private let recommendationEngine = RecommendationEngine()
+    /// 実際にHotPepper検索へ適用中の絞り込み（AIおすすめの段階的リラックスで決定）。nilなら絞り込みなし。
+    private var appliedFilter: AppliedFilter?
+    /// おすすめ検索で「十分な件数」とみなすしきい値。これ未満なら条件を1つ緩めて再検索する（調整可）。
+    private static let minRecommendationResults = 10
     private let friendsViewModel: FriendsViewModel
     /// いいね・「行った」状態の保存先。ログイン中は`RemoteFavoritesRepository`を渡す。
     /// nil の場合（プレビュー等）は同期せずメモリ上のみで動作する。
@@ -87,32 +105,16 @@ final class RestaurantViewModel: ObservableObject {
         isFetchingNextPage = true
         // こだわらない場合は nil
         let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
-        // 呼び出し元から明示的に指定がなければディスカバリー設定のジャンルを使う
-        let genreParam = genre ?? settings.selectedGenreCode
+        // 適用中の絞り込み（AIおすすめが段階的リラックスで決めたもの）を引き継ぐ。無ければ絞り込まない。
+        let genreParam = genre ?? appliedFilter?.genreCode
+        let keywordParam = keyword ?? appliedFilter?.keyword
+        let particularsParam = appliedFilter.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
 
         Task {
             do {
-                let range: String?
-                let serviceAreaCode: String?
-                switch settings.searchLocationMode {
-                case .currentLocation:
-                    let locationManager = LocationManager.shared
-                    await locationManager.requestLocationPermissionIfNeeded()
-                    // 位置情報取得の失敗とAPI取得の失敗は別要因のため、両方とも
-                    // 独立してErrorQueueに積めるようここで報告しておく
-                    if let locationError = locationManager.locationError {
-                        DispatchQueue.main.async {
-                            self.lastError = AppError.from(locationError, fallbackTitle: locationError.errorTitle)
-                        }
-                    }
-                    range = settings.selectedRange.rangeValue
-                    serviceAreaCode = nil
-                case .area:
-                    range = nil
-                    serviceAreaCode = settings.selectedServiceAreaCode
-                }
+                let (range, serviceAreaCode) = await resolveLocationParams()
                 // API からデータ取得
-                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genreParam, budget: budgetParam, particulars: settings.particulars, serviceAreaCode: serviceAreaCode, startIndex: startIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keywordParam, range: range, genre: genreParam, budget: budgetParam, particulars: particularsParam, serviceAreaCode: serviceAreaCode, startIndex: startIndex)
 
                 DispatchQueue.main.async {
                     if startIndex == 1 {
@@ -138,6 +140,110 @@ final class RestaurantViewModel: ObservableObject {
         }
     }
 
+    /// この端末でオンデバイスAIおすすめが使えるか（iOS 26+ かつ Apple Intelligence 対応端末）。
+    var isRecommendationAvailable: Bool { recommendationEngine.isAvailable }
+
+    /// 今日の気分（任意）といいね履歴からAIに検索条件を提案させ、「段階的リラックス」で検索する。
+    ///
+    /// AIの条件をそのままANDで全部かけると結果が激減する（気分フレーズのkeywordはほぼ0件になる）。
+    /// そこで「厳しい条件→緩い条件」の順に検索し、十分な件数(minRecommendationResults)が返った
+    /// 最初の段階を採用する。こうして条件が満たせる時はAIの提案を効かせ、足りない時だけ緩めて
+    /// 常に十分な店舗数を確保する。AIが使えない場合は無条件（最大件数）になる。
+    /// - Parameter userPrompt: 今日の気分・リクエスト。空・nil なら履歴のみで判断する。
+    func applyRecommendation(userPrompt: String?) async {
+        guard !isLoading else { return }
+        isRecommending = true
+        let criteria = await recommendationEngine.recommend(userPrompt: userPrompt, likedShops: favoriteShops)
+        recommendationReason = criteria?.reason
+        isRecommending = false
+
+        isLoading = true
+        isFetchingNextPage = true
+        defer {
+            isLoading = false
+            isFetchingNextPage = false
+        }
+
+        let (range, serviceAreaCode) = await resolveLocationParams()
+        let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
+
+        // 厳しい→緩い の順に試し、件数がしきい値以上になった最初の段階を採用。
+        // どれも満たさなければ最後（無条件）の結果を使う。
+        let attempts = relaxationAttempts(for: criteria)
+        var chosen = attempts[attempts.count - 1]
+        var chosenShops: [Shop] = []
+        var chosenTotal = 0
+        do {
+            for attempt in attempts {
+                let result = try await apiClient.fetchRestaurantData(
+                    keyword: attempt.keyword,
+                    range: range,
+                    genre: attempt.genreCode,
+                    budget: budgetParam,
+                    particulars: DiscoveryParticulars(selected: attempt.particulars),
+                    serviceAreaCode: serviceAreaCode,
+                    startIndex: 1
+                )
+                chosen = attempt
+                chosenShops = result.results.shop
+                chosenTotal = result.results.resultsAvailable
+                if result.results.resultsAvailable >= Self.minRecommendationResults { break }
+            }
+        } catch {
+            print("エラー: \(error.localizedDescription)")
+            lastError = AppError.from(error, fallbackTitle: "お店を読み込めませんでした")
+            return
+        }
+
+        appliedFilter = chosen
+        shopList = chosenShops
+        currentPage = 1
+        totalResults = chosenTotal
+        hasMorePages = shopList.count < totalResults
+    }
+
+    /// 現在地/エリア指定に応じた range と serviceAreaCode を解決する。
+    /// 現在地モードでは位置情報の許可要求と、失敗時のエラー報告もここで行う。
+    private func resolveLocationParams() async -> (range: String?, serviceAreaCode: String?) {
+        switch settings.searchLocationMode {
+        case .currentLocation:
+            let locationManager = LocationManager.shared
+            await locationManager.requestLocationPermissionIfNeeded()
+            // 位置情報取得の失敗とAPI取得の失敗は別要因のため、独立して報告しておく
+            if let locationError = locationManager.locationError {
+                lastError = AppError.from(locationError, fallbackTitle: locationError.errorTitle)
+            }
+            return (settings.selectedRange.rangeValue, nil)
+        case .area:
+            return (nil, settings.selectedServiceAreaCode)
+        }
+    }
+
+    /// AIおすすめの条件を「厳しい→緩い」の段階に展開する（applyRecommendationが順に試す）。
+    private func relaxationAttempts(for criteria: RecommendationCriteria?) -> [AppliedFilter] {
+        guard let criteria, let genre = criteria.genreCode else {
+            // AIが使えない/ジャンル無し → 無条件（最大件数）
+            return [AppliedFilter(genreCode: nil, keyword: nil, particulars: [])]
+        }
+        let keyword = criteria.keyword
+        let particulars = criteria.particulars
+
+        var attempts: [AppliedFilter] = []
+        // 1. ジャンル＋キーワード＋こだわり（AIの提案そのまま）
+        if keyword != nil || !particulars.isEmpty {
+            attempts.append(AppliedFilter(genreCode: genre, keyword: keyword, particulars: particulars))
+        }
+        // 2. ジャンル＋こだわり（キーワードを外す＝一番結果を潰しやすい）
+        if !particulars.isEmpty {
+            attempts.append(AppliedFilter(genreCode: genre, keyword: nil, particulars: particulars))
+        }
+        // 3. ジャンルのみ
+        attempts.append(AppliedFilter(genreCode: genre, keyword: nil, particulars: []))
+        // 4. 無条件（ジャンルも外す）＝必ず件数を確保
+        attempts.append(AppliedFilter(genreCode: nil, keyword: nil, particulars: []))
+        return attempts
+    }
+
     /// ページング用のデータを API から取得する
     func fetchNextPage(keyword: String? = nil, genre: String? = nil, budget: String? = nil) {
         guard !isLoading, !isFetchingNextPage else { return }
@@ -153,7 +259,10 @@ final class RestaurantViewModel: ObservableObject {
         
         // こだわらない場合は nil
         let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
-        let genreParam = genre ?? settings.selectedGenreCode
+        // 1ページ目で採用された絞り込みをそのまま引き継ぐ（同じ条件で続きを取る）
+        let genreParam = genre ?? appliedFilter?.genreCode
+        let keywordParam = keyword ?? appliedFilter?.keyword
+        let particularsParam = appliedFilter.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
 
         Task {
             do {
@@ -167,7 +276,7 @@ final class RestaurantViewModel: ObservableObject {
                     range = nil
                     serviceAreaCode = settings.selectedServiceAreaCode
                 }
-                let result = try await apiClient.fetchRestaurantData(keyword: keyword, range: range, genre: genreParam, budget: budgetParam, particulars: settings.particulars, serviceAreaCode: serviceAreaCode, startIndex: nextStartIndex)
+                let result = try await apiClient.fetchRestaurantData(keyword: keywordParam, range: range, genre: genreParam, budget: budgetParam, particulars: particularsParam, serviceAreaCode: serviceAreaCode, startIndex: nextStartIndex)
 
                 DispatchQueue.main.async {
                     self.shopList.insert(contentsOf: result.results.shop, at: 0)
