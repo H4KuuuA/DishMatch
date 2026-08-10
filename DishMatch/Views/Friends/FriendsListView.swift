@@ -32,27 +32,27 @@ struct FriendsListView: View {
                 if friendsViewModel.friends.isEmpty && friendsViewModel.incomingRequests.isEmpty {
                     emptyState
                 } else {
-                    List {
-                        if !friendsViewModel.incomingRequests.isEmpty {
-                            Section("友達申請") {
-                                ForEach(friendsViewModel.incomingRequests) { request in
-                                    requestRow(request)
-                                        .listRowSeparator(.hidden)
+                    VStack(spacing: 0) {
+                        searchBar
+                        List {
+                            if !friendsViewModel.incomingRequests.isEmpty {
+                                Section("友達申請") {
+                                    ForEach(friendsViewModel.incomingRequests) { request in
+                                        requestRow(request)
+                                            .listRowSeparator(.hidden)
+                                    }
                                 }
                             }
-                        }
-                        Section {
-                            ForEach(filteredFriends) { friend in
-                                friendLink(friend)
-                                    .listRowSeparator(.hidden) // 友達同士の区切り線は出さない（すっきりさせる）
+                            Section {
+                                ForEach(filteredFriends) { friend in
+                                    friendLink(friend)
+                                        .listRowSeparator(.hidden) // 友達同士の区切り線は出さない（すっきりさせる）
+                                }
+                                .onDelete(perform: deleteFiltered)
                             }
-                            .onDelete(perform: deleteFiltered)
                         }
+                        .listStyle(.plain)
                     }
-                    .listStyle(.plain)
-                    .searchable(text: $searchText,
-                                placement: .navigationBarDrawer(displayMode: .always),
-                                prompt: "友達を検索")
                 }
             }
             .overlay(alignment: .top) {
@@ -105,6 +105,34 @@ struct FriendsListView: View {
         } else {
             FriendChatRow(friend: friend, summary: summary)
         }
+    }
+
+    /// 独自の検索バー。`.searchable` はカスタムタブバーと干渉するため使わず、LikesView同様に自作する。
+    private var searchBar: some View {
+        HStack(spacing: 0) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+                .padding(.leading, 10)
+            TextField("友達を検索", text: $searchText)
+                .font(.callout)
+                .padding(.vertical, 10)
+                .padding(.leading, 6)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray.opacity(0.5))
+                }
+                .padding(.trailing, 10)
+            }
+        }
+        .frame(height: 40)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray5)))
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private var emptyState: some View {
