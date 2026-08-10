@@ -116,8 +116,12 @@ extension RecommendationEngine {
             let response = try await session.respond(to: prompt, generating: AIRecommendation.self)
             let criteria = response.content.toCriteria()
             #if DEBUG
-            // 実機のXcodeコンソールでAIの生成物を確認するためのログ（シミュレータはモデルが無く生成不可）
-            print("🔮[AIおすすめ] prompt=\(userPrompt ?? "（気分なし）") → genreCode=\(criteria.genreCode ?? "nil") keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
+            // 実機のXcodeコンソールで、AIへの入力（いいね傾向を含むプロンプト）と生成物を確認する。
+            // 「いいねを見ているか」を検証するため、いいね件数・ジャンル・実プロンプトも出す。
+            let likedGenres = likedShops.map { $0.genre.name }
+            print("🔮[AIおすすめ] いいね件数=\(likedShops.count) ジャンル=\(likedGenres)")
+            print("🔮[AIおすすめ] 入力プロンプト:\n\(prompt)")
+            print("🔮[AIおすすめ] 生成: genreCode=\(criteria.genreCode ?? "nil") keyword=\(criteria.keyword ?? "nil") particulars=\(criteria.particulars.map(\.rawValue)) reason=\(criteria.reason ?? "nil")")
             #endif
             return criteria
         } catch {
