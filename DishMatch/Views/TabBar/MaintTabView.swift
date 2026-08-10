@@ -73,6 +73,10 @@ struct MainTabView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !tabBarVisibility.isHidden {
                 CustomTabBarView(selectedTab: $selectedTab)
+                    // キーボード表示時、safeAreaInsetの中身はキーボード分だけ持ち上がってしまう。
+                    // タブバーはキーボードのセーフエリアを無視して最下部に固定し、キーボードの上に
+                    // 浮かないようにする（＝キーボードに隠れるのが正しい挙動）。
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
             }
         }
     }
