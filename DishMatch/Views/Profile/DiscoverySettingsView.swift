@@ -135,7 +135,7 @@ struct DiscoverySettingsView: View {
                         dismiss()
                     } label: {
                         Text("キャンセル")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.gray)
                     }
                 }
             }
