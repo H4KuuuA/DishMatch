@@ -68,9 +68,10 @@ final class RecommendationEngine: ObservableObject {
 
     /// モデルへ渡すシステム指示。優先度・具体度(breadth)の判定基準・無難さ回避をここで明示する。
     static let instructions = """
-    あなたはレストラン発見アプリのアシスタントです。ユーザーの「いいね履歴」と「今日の気分」から検索条件を提案します。
+    あなたはレストラン発見アプリのアシスタントです。ユーザーの入力から検索条件を提案します。
     ルール:
-    ・優先順位は必ず「今日の気分」＞「いいね履歴」。
+    ・「今日の気分」が入力されている時は、ジャンルは"今日の気分だけ"で決める。いいね履歴には引っ張られない。
+    ・「今日の気分」が空の時だけ、いいね履歴の傾向からジャンルを決める。
     ・primaryGenre は必ず1つ選ぶ。
     ・breadth は、コーヒー・パンケーキ・寿司・ラーメンなど"特定の料理や飲み物"を指すなら "specific"、\
     「がっつり」「軽く飲みたい」「なんでも」など"漠然とした気分"なら "broad"。
@@ -82,21 +83,30 @@ final class RecommendationEngine: ObservableObject {
     ・「軽く飲みたい」→ primary=ダイニングバー・バル / breadth=broad / secondary=居酒屋,バー・カクテル
     """
 
-    /// 履歴と今日の気分から入力プロンプト文を組み立てる。
+    /// 入力プロンプト文を組み立てる。
+    /// **プロンプト最優先**: 今日の気分が入力されている時は、いいね履歴は渡さない（小型モデルが履歴に
+    /// 引っ張られてジャンルを誤るのを防ぐ）。気分が空の時だけ履歴を渡して、そこからジャンルを決めさせる。
     static func buildPrompt(userPrompt: String?, likedShops: [Shop]) -> String {
+        let mood = userPrompt?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyOrNil
+
+        if let mood {
+            return """
+            【今日の気分・リクエスト】\(mood)
+            今日の気分だけを最優先に、この人に響く検索条件を提案してください。いいね履歴は考慮しなくて構いません。
+            """
+        }
+
         var seen = Set<String>()
         let topGenres = likedShops
             .map { $0.genre.name }
             .filter { seen.insert($0).inserted }
             .prefix(6)
         let history = topGenres.isEmpty ? "まだ履歴なし" : topGenres.joined(separator: "、")
-        let mood = userPrompt?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyOrNil ?? "特に指定なし"
         return """
         【いいねしたお店のジャンル傾向】\(history)
-        【今日の気分・リクエスト】\(mood)
-        上記をもとに、今のこの人におすすめの検索条件を提案してください。
+        今日の気分は特に指定がないので、いいね履歴の傾向から、この人に響く検索条件を提案してください。
         """
     }
 }

@@ -222,6 +222,10 @@ final class RestaurantViewModel: ObservableObject {
 
     /// AIおすすめの条件を「厳しい→緩い」の段に展開する（ジャンル集合は全段で固定）。
     /// applyRecommendationが順に試し、件数がしきい値以上になった最初の段を採用する。
+    ///
+    /// **keywordはAPIの絞り込みには使わない**（ハード絞り込みは件数が激減するため）。
+    /// keywordは常に「並び順」専用に降格し、ジャンル集合の全件を出しつつ一致店を上位に寄せる。
+    /// これにより「コーヒー」ならカフェ全件（コーヒーの店が上位）を出せて、提案数を最大化できる。
     private func relaxationLadder(for criteria: RecommendationCriteria?) -> [AppliedFilter] {
         guard let criteria, !criteria.genreCodes.isEmpty else {
             // AIが使えない/ジャンル無し → ニュートラル（絞り込みなし）
@@ -230,19 +234,14 @@ final class RestaurantViewModel: ObservableObject {
         let codes = criteria.genreCodes
         let isBroad = criteria.isBroad
         let keyword = criteria.keyword
-        let hasKeyword = !(keyword ?? "").isEmpty
         let particulars = criteria.particulars
 
         var ladder: [AppliedFilter] = []
-        // 1. こだわり＋keyword絞り込み（AIの提案そのまま）。こだわりがある時だけ。
+        // 1. 集合＋こだわり（keywordは並び順のみ）。こだわりがある時だけ。
         if !particulars.isEmpty {
-            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: hasKeyword, particulars: particulars, isBroad: isBroad))
+            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: particulars, isBroad: isBroad))
         }
-        // 2. こだわりを外し、keyword絞り込みは残す。keywordがある時だけ意味がある。
-        if hasKeyword {
-            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: true, particulars: [], isBroad: isBroad))
-        }
-        // 3. 集合のみ。keywordは並び順（一致店を上位）だけに降格し、絞り込みには使わない。
+        // 2. 集合のみ（こだわりも外す。keywordは並び順のみ）＝件数を最大化。
         ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: [], isBroad: isBroad))
         return ladder
     }
