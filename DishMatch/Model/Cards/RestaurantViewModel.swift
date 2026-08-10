@@ -51,8 +51,10 @@ final class RestaurantViewModel: ObservableObject {
     private let recommendationEngine = RecommendationEngine()
     /// 実際にHotPepper検索へ適用中の絞り込み（AIおすすめの段階的リラックスで決定）。nilなら絞り込みなし。
     private var appliedFilter: AppliedFilter?
-    /// おすすめ検索で「十分な件数」とみなすしきい値。これ未満なら条件を1つ緩めて再検索する（調整可）。
-    private static let minRecommendationResults = 10
+    /// おすすめ検索で「十分な件数」とみなすしきい値。これ未満なら条件を1つ緩めて再検索する。
+    /// カードスタックを常に満杯（1ページ＝20枚）にしたいので1ページ分に設定している。
+    /// 大きいほど件数重視で条件を緩めやすく、小さいほど条件を残しやすい（調整可）。
+    private static let minRecommendationResults = 20
     private let friendsViewModel: FriendsViewModel
     /// いいね・「行った」状態の保存先。ログイン中は`RemoteFavoritesRepository`を渡す。
     /// nil の場合（プレビュー等）は同期せずメモリ上のみで動作する。
