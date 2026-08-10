@@ -96,10 +96,12 @@ final class RestaurantViewModel: ObservableObject {
         isFetchingNextPage = true
         // こだわらない場合は nil
         let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
-        // ジャンル・キーワード・こだわりはAIが提案した条件を使う（無ければ絞り込まない＝ニュートラルな発見）
+        // AIが効かせるのは「ジャンル」だけ（緩い軸）。キーワードとこだわりをANDで重ねると結果が激減し、
+        // 特に気分フレーズをkeywordに渡すとほぼ0件になるため、ハード検索には使わない。
+        // こうしてジャンルでAIのおすすめ傾向を反映しつつ店舗数を最大化する。keywordは明示指定時のみ使う。
         let genreParam = genre ?? aiCriteria?.genreCode
-        let keywordParam = keyword ?? aiCriteria?.keyword
-        let particularsParam = aiCriteria.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
+        let keywordParam = keyword
+        let particularsParam = DiscoveryParticulars.none
 
         Task {
             do {
@@ -179,10 +181,10 @@ final class RestaurantViewModel: ObservableObject {
         
         // こだわらない場合は nil
         let budgetParam = settings.selectedBudget == .noPreference ? nil : settings.selectedBudget.budgetCode
-        // ページングでもAIが提案した条件を引き継ぐ（1ページ目と同じ絞り込みで続きを取る）
+        // 1ページ目と同じくジャンルだけを引き継ぐ（キーワード・こだわりは絞り込みすぎるため使わない）
         let genreParam = genre ?? aiCriteria?.genreCode
-        let keywordParam = keyword ?? aiCriteria?.keyword
-        let particularsParam = aiCriteria.map { DiscoveryParticulars(selected: $0.particulars) } ?? .none
+        let keywordParam = keyword
+        let particularsParam = DiscoveryParticulars.none
 
         Task {
             do {
