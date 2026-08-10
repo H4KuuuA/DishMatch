@@ -223,25 +223,32 @@ final class RestaurantViewModel: ObservableObject {
     /// AIおすすめの条件を「厳しい→緩い」の段に展開する（ジャンル集合は全段で固定）。
     /// applyRecommendationが順に試し、件数がしきい値以上になった最初の段を採用する。
     ///
-    /// **keywordはAPIの絞り込みには使わない**（ハード絞り込みは件数が激減するため）。
-    /// keywordは常に「並び順」専用に降格し、ジャンル集合の全件を出しつつ一致店を上位に寄せる。
-    /// これにより「コーヒー」ならカフェ全件（コーヒーの店が上位）を出せて、提案数を最大化できる。
+    /// **keywordはAPIの絞り込みには使わない**（ハード絞り込みは件数が激減するため）。keywordは常に
+    /// 「並び順」専用に降格し、集合の全件を出しつつ一致店を上位に寄せる（「コーヒー」→カフェ全件）。
+    ///
+    /// 2軸のテーマを1つのladderで扱う:
+    /// - 料理テーマ: genreCodesあり。こだわりは補助で、末尾から緩める。
+    /// - シチュエーションテーマ（デート等）: genreCodes空（＝全ジャンル）。**こだわりが主役**で、
+    ///   個室・夜景・コース…をANDで効かせ、件数が減ったら重要度の低い順（末尾）に1つずつ緩める。
     private func relaxationLadder(for criteria: RecommendationCriteria?) -> [AppliedFilter] {
-        guard let criteria, !criteria.genreCodes.isEmpty else {
-            // AIが使えない/ジャンル無し → ニュートラル（絞り込みなし）
-            return [.neutral]
-        }
+        guard let criteria else { return [.neutral] }
         let codes = criteria.genreCodes
-        let isBroad = criteria.isBroad
         let keyword = criteria.keyword
-        let particulars = criteria.particulars
+        let particulars = criteria.particulars  // 優先度の高い順
+        let isBroad = criteria.isBroad
+
+        // ジャンルもこだわりも無ければニュートラル（絞り込みなし）。
+        if codes.isEmpty && particulars.isEmpty { return [.neutral] }
 
         var ladder: [AppliedFilter] = []
-        // 1. 集合＋こだわり（keywordは並び順のみ）。こだわりがある時だけ。
-        if !particulars.isEmpty {
-            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: particulars, isBroad: isBroad))
+        // こだわりを多い→少ないの順に段を作る（末尾＝重要度の低いものから外す）。
+        var keep = particulars.count
+        while keep > 0 {
+            let subset = Set(particulars.prefix(keep))
+            ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: subset, isBroad: isBroad))
+            keep -= 1
         }
-        // 2. 集合のみ（こだわりも外す。keywordは並び順のみ）＝件数を最大化。
+        // 最後: こだわり無し（集合のみ／シチュエーションは全ジャンル）＝件数を最大化。
         ladder.append(AppliedFilter(genreCodes: codes, keyword: keyword, keywordIsFilter: false, particulars: [], isBroad: isBroad))
         return ladder
     }

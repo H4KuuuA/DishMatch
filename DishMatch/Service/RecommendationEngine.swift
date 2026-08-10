@@ -15,15 +15,17 @@ import FoundationModels
 /// 他の層（RestaurantViewModelなど）はこの型だけを扱う。
 struct RecommendationCriteria {
     /// HotPepperのジャンルコード集合（primaryが先頭・重複排除・最大3件）。
-    /// これが「意図の硬い境界線」で、検索時にこの外へは絶対に広げない。空なら絞り込まない。
+    /// これが「意図の硬い境界線」で、検索時にこの外へは絶対に広げない。
+    /// **空ならジャンルで絞らない**（デート等のシチュエーションテーマ＝こだわりで全ジャンル横断的に出す）。
     var genreCodes: [String]
     /// テーマが広いか（broad）。broadのときだけ複数ジャンルを加重マージする。
     /// specific（コーヒー等の具体テーマ）は先頭1ジャンルに閉じる。
     var isBroad: Bool
-    /// 追加の検索キーワード。nilなら付けない。
+    /// 追加の検索キーワード。nilなら付けない。並び順専用（絞り込みには使わない）。
     var keyword: String?
-    /// 重視する「こだわり」条件（最小限）。
-    var particulars: Set<ParticularOption>
+    /// 重視する「こだわり」条件を**優先度の高い順**に並べたもの。
+    /// シチュエーションテーマではこれが主役（件数が減ったら末尾から1つずつ緩める）。
+    var particulars: [ParticularOption]
     /// この提案を選んだ理由（UI表示用）。
     var reason: String?
 }
@@ -66,21 +68,27 @@ final class RecommendationEngine: ObservableObject {
 
     // MARK: - プロンプト組み立て（OSバージョン非依存）
 
-    /// モデルへ渡すシステム指示。優先度・具体度(breadth)の判定基準・無難さ回避をここで明示する。
+    /// モデルへ渡すシステム指示。テーマ種別・優先度・具体度(breadth)の判定基準をここで明示する。
     static let instructions = """
     あなたはレストラン発見アプリのアシスタントです。ユーザーの入力から検索条件を提案します。
+    まず themeKind を判定します:
+    ・"料理" … コーヒー・焼肉・寿司・がっつり など"食べたい料理や味"が主眼。
+    ・"シチュエーション" … デート・記念日・女子会・接待・一人でゆっくり・子連れ など"場面や雰囲気"が主眼で、\
+    特定の料理を指していない。
     ルール:
-    ・「今日の気分」が入力されている時は、ジャンルは"今日の気分だけ"で決める。いいね履歴には引っ張られない。
-    ・「今日の気分」が空の時だけ、いいね履歴の傾向からジャンルを決める。
-    ・primaryGenre は必ず1つ選ぶ。
-    ・breadth は、コーヒー・パンケーキ・寿司・ラーメンなど"特定の料理や飲み物"を指すなら "specific"、\
-    「がっつり」「軽く飲みたい」「なんでも」など"漠然とした気分"なら "broad"。
-    ・"broad" のときだけ、primaryと雰囲気の近い secondaryGenre を最大2つ足す。"specific" では「なし」にする。
-    ・keyword は具体的な料理・食材の短い日本語だけ（例: コーヒー, 焼肉, パンケーキ）。気分の言葉しか無ければ空文字にする。
+    ・「今日の気分」が入力されている時は、"今日の気分だけ"で決める。いいね履歴には引っ張られない。空の時だけ履歴を使う。
+    ・themeKind が "料理" の時: primaryGenre を必ず1つ選ぶ。breadth は、コーヒー・パンケーキ・寿司など\
+    "特定の料理"なら "specific"、「がっつり」「軽く飲みたい」など"漠然"なら "broad"。broad の時だけ \
+    secondaryGenre を最大2つ足す（specificは「なし」）。keyword は具体的な料理・食材の短い日本語だけ（無ければ空文字）。
+    ・themeKind が "シチュエーション" の時: **ジャンルでは絞らない**。primaryGenre は適当でよく、代わりに vibes に\
+    その場面に合う"こだわり"を重要な順に最大3つ入れる（例 デート=個室,夜景,コース）。keyword は空文字。
+    ・vibes は重要な順に並べる。無ければ空配列。
     例:
-    ・「コーヒー飲みたい」→ primary=カフェ・スイーツ / breadth=specific / keyword=コーヒー
-    ・「がっつり食べたい」→ primary=焼肉・ホルモン / breadth=broad / secondary=居酒屋,ラーメン
-    ・「軽く飲みたい」→ primary=ダイニングバー・バル / breadth=broad / secondary=居酒屋,バー・カクテル
+    ・「コーヒー飲みたい」→ themeKind=料理 / primary=カフェ・スイーツ / breadth=specific / keyword=コーヒー
+    ・「がっつり食べたい」→ themeKind=料理 / primary=焼肉・ホルモン / breadth=broad / secondary=居酒屋,ラーメン
+    ・「デート」→ themeKind=シチュエーション / vibes=個室,夜景,コース / keyword=空
+    ・「女子会」→ themeKind=シチュエーション / vibes=個室,飲み放題
+    ・「接待」→ themeKind=シチュエーション / vibes=個室,コース,座敷
     """
 
     /// 入力プロンプト文を組み立てる。
@@ -158,9 +166,12 @@ extension RecommendationEngine {
 @available(iOS 26.0, *)
 @Generable
 struct AIRecommendation {
+    @Guide(description: "リクエストが料理主眼なら「料理」、デート・記念日・女子会など場面主眼なら「シチュエーション」", .anyOf(["料理", "シチュエーション"]))
+    var themeKind: String
+
     // 列挙型（英語のcase名）だと小型モデルが日本語の意図をうまく対応づけられないため、
     // 日本語のジャンル名を .anyOf で選ばせ、後でコードに変換する。
-    @Guide(description: "ユーザーの気分に最も合う主役の料理ジャンルを次から1つ選ぶ", .anyOf(Self.genreNames))
+    @Guide(description: "themeKindが料理のとき、気分に最も合う主役の料理ジャンルを1つ選ぶ", .anyOf(Self.genreNames))
     var primaryGenre: String
 
     @Guide(description: "リクエストの具体度。特定の料理や飲み物名なら specific、漠然とした気分なら broad", .anyOf(["specific", "broad"]))
@@ -175,10 +186,10 @@ struct AIRecommendation {
     @Guide(description: "料理名や食材を表す日本語の短い単語。気分やあいまいな語しか無ければ空文字にする。例: コーヒー, 焼肉, パンケーキ")
     var keyword: String
 
-    @Guide(description: "重視する店の雰囲気や設備。最大2つ。無ければ空配列。")
+    @Guide(description: "重視する店の雰囲気や設備を重要な順に。最大3つ。無ければ空配列。シチュエーションではここが主役（例 デート=個室,夜景,コース）。")
     var vibes: [RecommendedVibe]
 
-    @Guide(description: "この提案を選んだ理由を、ユーザーのいいね傾向や今日の気分に触れて1文で述べる")
+    @Guide(description: "この提案を選んだ理由を、今日の気分やいいね傾向に触れて1文で述べる")
     var reason: String
 
     /// 選ばせるジャンル名（HotPepperのジャンルマスタに一致）。
@@ -195,9 +206,24 @@ struct AIRecommendation {
     func toCriteria() -> RecommendationCriteria {
         let trimmedKeyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasKeyword = !trimmedKeyword.isEmpty
+        // 具体語(keyword)があれば「料理」テーマに寄せる二重ガード。
+        let isFoodTheme = (themeKind == "料理") || hasKeyword
+        let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reasonOrNil = trimmedReason.isEmpty ? nil : trimmedReason
+
+        if !isFoodTheme {
+            // シチュエーション: ジャンルでは絞らず（genreCodes空＝全ジャンル）、こだわりで出す。
+            return RecommendationCriteria(
+                genreCodes: [],
+                isBroad: false,
+                keyword: nil,
+                particulars: Self.orderedParticulars(from: vibes, limit: 3),
+                reason: reasonOrNil
+            )
+        }
+
         // 具体語(keyword)があれば specific に寄せる二重ガード。狭いテーマが誤って複数ジャンルに広がるのを防ぐ。
         let broad = (breadth == "broad") && !hasKeyword
-
         var codes: [String] = []
         if let primary = Self.hotpepperCode(forGenreName: primaryGenre) {
             codes.append(primary)
@@ -211,15 +237,28 @@ struct AIRecommendation {
         }
         codes = Array(codes.prefix(3))
 
-        let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         return RecommendationCriteria(
             genreCodes: codes,
             isBroad: broad && codes.count > 1,
             keyword: hasKeyword ? trimmedKeyword : nil,
-            // 出会いの幅を残しつつ最小限に。こだわりは最大2つに丸める。
-            particulars: Set(vibes.prefix(2).map { $0.particular }),
-            reason: trimmedReason.isEmpty ? nil : trimmedReason
+            // 料理テーマではこだわりは補助的。最大2つに丸める。
+            particulars: Self.orderedParticulars(from: vibes, limit: 2),
+            reason: reasonOrNil
         )
+    }
+
+    /// vibes を ParticularOption の配列へ（優先順を保ち重複排除、上限つき）。
+    static func orderedParticulars(from vibes: [RecommendedVibe], limit: Int) -> [ParticularOption] {
+        var seen = Set<ParticularOption>()
+        var result: [ParticularOption] = []
+        for vibe in vibes {
+            let option = vibe.particular
+            if seen.insert(option).inserted {
+                result.append(option)
+                if result.count >= limit { break }
+            }
+        }
+        return result
     }
 
     /// 日本語のジャンル名 → HotPepperジャンルコード（get_genre実測に一致）。「なし」やその他は nil。
@@ -247,21 +286,24 @@ struct AIRecommendation {
     }
 }
 
-/// 気分から選ばせる「こだわり」条件の最小サブセット（シチュエーションに効くものだけ）。
+/// 気分・シチュエーションから選ばせる「こだわり」条件のサブセット（場面に効くものだけ）。
 @available(iOS 26.0, *)
 @Generable
 enum RecommendedVibe {
-    case privateRoom, allYouCanDrink, course, lunch, nightView, charter
+    case privateRoom, nightView, course, allYouCanDrink, charter, tatami, childFriendly, nonSmoking, lunch
 
     /// アプリ内の `ParticularOption` へ対応づける。
     var particular: ParticularOption {
         switch self {
         case .privateRoom: return .privateRoom
-        case .allYouCanDrink: return .freeDrink
-        case .course: return .course
-        case .lunch: return .lunch
         case .nightView: return .nightView
+        case .course: return .course
+        case .allYouCanDrink: return .freeDrink
         case .charter: return .charter
+        case .tatami: return .tatami
+        case .childFriendly: return .child
+        case .nonSmoking: return .nonSmoking
+        case .lunch: return .lunch
         }
     }
 }
