@@ -15,6 +15,8 @@ final class GooglePlaceInfoViewModel: ObservableObject {
     @Published private(set) var phoneNumber: String?
     @Published private(set) var rating: Double?
     @Published private(set) var userRatingCount: Int?
+    /// お店の雰囲気写真URL（HotPepperの1枚に加えてギャラリー表示に使う）
+    @Published private(set) var photoURLs: [String] = []
     @Published private(set) var isLoading = false
     @Published private(set) var lookupFailed = false
 
@@ -32,6 +34,7 @@ final class GooglePlaceInfoViewModel: ObservableObject {
                 phoneNumber = info?.phoneNumber
                 rating = info?.rating
                 userRatingCount = info?.userRatingCount
+                photoURLs = info?.photoURLs ?? []
                 lookupFailed = info == nil
             } catch {
                 print("DEBUG: Google Places情報取得エラー \(error.localizedDescription)")
