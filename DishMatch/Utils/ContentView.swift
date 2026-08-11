@@ -10,6 +10,8 @@ import SwiftUI
 struct ContentView: View {
     // アプリ設定画面で選んだ外観モードをアプリ全体に反映する
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
+    // 初回のみチュートリアルを自動表示するためのフラグ（一度見たら二度と自動表示しない）
+    @AppStorage("hasSeenTutorial") private var hasSeenTutorial = false
     @EnvironmentObject private var authService: AuthService
 
     var body: some View {
@@ -27,6 +29,13 @@ struct ContentView: View {
                 // .id(uid) でユーザーが切り替わった際にメイン画面ツリーを作り直す
                 MainTabView(uid: uid)
                     .id(uid)
+                    // 初回ログイン後にチュートリアルを一度だけ全画面表示する
+                    .fullScreenCover(isPresented: .init(
+                        get: { !hasSeenTutorial },
+                        set: { showing in if !showing { hasSeenTutorial = true } }
+                    )) {
+                        TutorialView { hasSeenTutorial = true }
+                    }
             }
         }
         .preferredColorScheme(appearanceMode.colorScheme)

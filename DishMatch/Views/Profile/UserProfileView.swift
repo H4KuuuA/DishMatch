@@ -13,6 +13,7 @@ struct UserProfileView: View {
     @State private var isShowEditProfile = false
     @State private var isShowVisitedShops = false
     @State private var isShowAppSettings = false
+    @State private var isShowTutorial = false
     @State private var comingSoonDestination: ComingSoonDestination?
     @State private var legalDocument: LegalDocument?
     @State private var isShowLogoutConfirmation = false
@@ -42,6 +43,9 @@ struct UserProfileView: View {
                 }
 
                 Section("サポート") {
+                    profileRow(icon: "questionmark.circle", title: "使い方を見る") {
+                        isShowTutorial = true
+                    }
                     profileRow(icon: "info.circle", title: "ヘルプ・よくある質問") {
                         legalDocument = .faq
                     }
@@ -93,6 +97,9 @@ struct UserProfileView: View {
         }
         .sheet(isPresented: $isShowAppSettings) {
             AppSettingsView()
+        }
+        .fullScreenCover(isPresented: $isShowTutorial) {
+            TutorialView { isShowTutorial = false }
         }
         .sheet(item: $comingSoonDestination) { destination in
             ComingSoonView(title: destination.title, systemImage: destination.systemImage, message: destination.message)
