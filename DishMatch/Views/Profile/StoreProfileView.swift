@@ -29,6 +29,16 @@ struct StoreProfileView: View {
         return shop.genre.name
     }
 
+    /// ギャラリーに表示する画像URLの一覧。
+    /// HotPepperのメイン写真を先頭に、Google Placesの雰囲気写真を続ける。重複は除いて順序を保つ。
+    private var galleryURLs: [String] {
+        var urls: [String] = []
+        if !shop.photo.pc.l.isEmpty { urls.append(shop.photo.pc.l) }
+        urls.append(contentsOf: placeInfo.photoURLs)
+        var seen = Set<String>()
+        return urls.filter { seen.insert($0).inserted }
+    }
+
     /// 表示する備考（値があるものだけ）
     private var shopMemos: [(title: String, body: String)] {
         let candidates: [(String, String?)] = [
@@ -61,11 +71,42 @@ struct StoreProfileView: View {
             VStack {
                 ScrollView {
                     VStack {
-                        CachedShopImage(urlString: shop.photo.pc.l)
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, maxHeight: 500)
-                            .background(Color.gray.opacity(0.3))
-                            .clipped()
+                        ZStack(alignment: .topTrailing) {
+                            // TabView はコンテンツ由来の固有高さを持たないため、ScrollView内では
+                            // 高さを固定しないと潰れる。ここで明示的に高さを与える。
+                            TabView(selection: $currentImageIndex) {
+                                ForEach(Array(galleryURLs.enumerated()), id: \.offset) { index, url in
+                                    CachedShopImage(urlString: url)
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .clipped()
+                                        .tag(index)
+                                }
+                            }
+                            .tabViewStyle(.page(indexDisplayMode: .never))
+
+                            // 複数枚あるときだけ、現在位置と総枚数を示すカウンターを表示する。
+                            // 画像下部は情報カードと重なって隠れるため、重ならない右上に配置する。
+                            if galleryURLs.count > 1 {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "photo.on.rectangle.angled")
+                                        .font(.caption2)
+                                    Text("\(min(currentImageIndex, galleryURLs.count - 1) + 1) / \(galleryURLs.count)")
+                                        .font(.caption)
+                                        .monospacedDigit()
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.black.opacity(0.35), in: Capsule())
+                                .padding(.top, 12)
+                                .padding(.trailing, 12)
+                            }
+                        }
+                        .frame(height: 500)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.gray.opacity(0.3))
+                        .clipped()
 
                         // 店舗情報
                         VStack(alignment: .leading, spacing: 8) {

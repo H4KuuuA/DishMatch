@@ -22,6 +22,10 @@ enum GooglePlacesError: Error {
 /// （記事詳細画面を開いた時だけ呼び出し、カード一覧のスワイプ中には呼ばない）。
 final class GooglePlacesClient: Sendable {
     private static let searchURL = URL(string: "https://places.googleapis.com/v1/places:searchText")!
+    /// ギャラリーに使う雰囲気写真の最大枚数。多すぎても表示が冗長になるので上限を設ける。
+    private static let maxPhotos = 8
+    /// Photo media で要求する画像の最大幅（px）。詳細画面の表示サイズに十分な解像度。
+    private static let photoMaxWidthPx = 800
 
     /// 店名と住所からお店の補足情報（電話番号・評価）を検索する。見つからない場合はnilを返す
     func fetchPlaceInfo(shopName: String, address: String) async throws -> GooglePlaceInfo? {
@@ -34,9 +38,11 @@ final class GooglePlacesClient: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "X-Goog-Api-Key")
-        // フィールドマスクを絞ることで課金対象の項目を必要最小限にする
+        // フィールドマスクを絞ることで課金対象の項目を必要最小限にする。
+        // 写真メタデータ(places.photos)は既存の評価取得と同じ1リクエストにまとめるため、
+        // API呼び出し回数は増えない（＝追加の呼び出し課金は発生しない）。
         request.setValue(
-            "places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount",
+            "places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.photos",
             forHTTPHeaderField: "X-Goog-FieldMask"
         )
 
@@ -58,8 +64,18 @@ final class GooglePlacesClient: Sendable {
         }
 
         let phoneNumber = place.nationalPhoneNumber ?? place.internationalPhoneNumber
+        let photoURLs = Self.buildPhotoURLs(from: place.photos, apiKey: apiKey)
         let ratingDescription = place.rating.map { String(format: "%.1f", $0) } ?? "なし"
-        print("DEBUG: Google Places 取得結果 - 電話番号: \(phoneNumber ?? "なし"), 評価: \(ratingDescription)")
-        return GooglePlaceInfo(phoneNumber: phoneNumber, rating: place.rating, userRatingCount: place.userRatingCount)
+        print("DEBUG: Google Places 取得結果 - 電話番号: \(phoneNumber ?? "なし"), 評価: \(ratingDescription), 写真: \(photoURLs.count)枚")
+        return GooglePlaceInfo(phoneNumber: phoneNumber, rating: place.rating, userRatingCount: place.userRatingCount, photoURLs: photoURLs)
+    }
+
+    /// 写真メタデータから Photo media エンドポイントの実画像URLを組み立てる。
+    /// 各URLはリダイレクトで実画像を返すため、そのまま画像ビューに渡して表示できる。
+    private static func buildPhotoURLs(from photos: [GooglePlacePhoto]?, apiKey: String) -> [String] {
+        guard let photos else { return [] }
+        return photos.prefix(maxPhotos).map { photo in
+            "https://places.googleapis.com/v1/\(photo.name)/media?maxWidthPx=\(photoMaxWidthPx)&key=\(apiKey)"
+        }
     }
 }
