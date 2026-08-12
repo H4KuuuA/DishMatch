@@ -286,8 +286,10 @@ struct FriendAvatarCircle: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Text(emoji)
-                    .font(.system(size: size * 0.46))
+                Image(systemName: "person.crop.circle")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.gray.opacity(0.6))
             }
         }
         .frame(width: size, height: size)
