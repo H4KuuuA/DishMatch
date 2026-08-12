@@ -67,9 +67,7 @@ struct EditUserProfileView: View {
 
     private var avatarPreview: some View {
         ZStack(alignment: .bottomTrailing) {
-            avatarImage
-                .resizable()
-                .scaledToFill()
+            avatarView
                 .frame(width: 100, height: 100)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(Color.orange.opacity(0.3), lineWidth: 2))
@@ -82,13 +80,20 @@ struct EditUserProfileView: View {
         }
     }
 
-    private var avatarImage: Image {
+    @ViewBuilder private var avatarView: some View {
         if let pendingAvatarData, let uiImage = UIImage(data: pendingAvatarData) {
-            return Image(uiImage: uiImage)
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
         } else if let existingData = userProfile.avatarImageData, let uiImage = UIImage(data: existingData) {
-            return Image(uiImage: uiImage)
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
         } else {
-            return Image("UserProfileImage")
+            Image(systemName: "person.crop.circle")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.gray.opacity(0.6))
         }
     }
 

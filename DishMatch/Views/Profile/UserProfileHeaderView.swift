@@ -14,9 +14,7 @@ struct UserProfileHeaderView: View {
     var body: some View {
         VStack {
             ZStack (alignment: .topTrailing){
-                avatarImage
-                    .resizable()
-                    .scaledToFill()
+                avatarView
                     .frame(width: 120, height: 120)
                     .clipShape(Circle())
                     .background {
@@ -62,11 +60,16 @@ struct UserProfileHeaderView: View {
         }
     }
 
-    private var avatarImage: Image {
+    @ViewBuilder private var avatarView: some View {
         if let data = userProfile.avatarImageData, let uiImage = UIImage(data: data) {
             Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
         } else {
-            Image("UserProfileImage")
+            Image(systemName: "person.crop.circle")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.gray.opacity(0.6))
         }
     }
 }

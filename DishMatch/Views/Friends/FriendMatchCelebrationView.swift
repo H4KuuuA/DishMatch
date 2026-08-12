@@ -93,8 +93,10 @@ struct FriendMatchCelebrationView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Text(emoji)
-                    .font(.system(size: 30))
+                Image(systemName: "person.crop.circle")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.gray.opacity(0.6))
             }
         }
         .frame(width: 60, height: 60)
