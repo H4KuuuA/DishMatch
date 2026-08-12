@@ -113,7 +113,27 @@ struct FriendsListView: View {
         }
         .contextMenu {
             focusMenuButton(for: friend, isFocused: isFocused)
+        } preview: {
+            focusContextPreview(for: friend, isFocused: isFocused)
         }
+    }
+
+    /// 長押し時に浮き上がるプレビューカード（iPhoneのアプリ長押しメニューのような見た目）。
+    /// 誰に対する操作かを大きく見せ、その下にメニューボタンが並ぶ。
+    private func focusContextPreview(for friend: Friend, isFocused: Bool) -> some View {
+        VStack(spacing: 12) {
+            FriendAvatarCircle(imageData: friend.avatarImageData, emoji: friend.avatarEmoji, size: 72)
+            Text(friend.name)
+                .font(.headline)
+            HStack(spacing: 5) {
+                Image(systemName: "scope")
+                Text(isFocused ? "フォーカスモード対象です" : "この友達とだけマッチング")
+            }
+            .font(.footnote)
+            .foregroundStyle(isFocused ? .orange : .secondary)
+        }
+        .padding(24)
+        .frame(width: 240)
     }
 
     /// 長押しメニューのフォーカスモード切り替えボタン。
