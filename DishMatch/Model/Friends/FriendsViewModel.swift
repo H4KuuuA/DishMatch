@@ -17,6 +17,10 @@ final class FriendsViewModel: ObservableObject {
     /// 呼び出し元でErrorQueueに積んで多重エラーとして扱えるようにしている
     @Published private(set) var lastError: AppError?
 
+    /// フォーカスモードの対象の友達uid。設定中はこの1人としかマッチしない（他の友達とのマッチ判定を抑止する）。
+    /// 端末ローカルの個人設定として `UserDefaults` に自分のuid単位で保存し、再起動後も保持・いつでも解除できる。
+    @Published private(set) var focusedFriendID: String?
+
     private let repository: FriendRepository
     /// 友達申請の送受信先。ログイン中のみ非nil。
     private let friendRequestRepository: FriendRequestRepository?
@@ -49,6 +53,7 @@ final class FriendsViewModel: ObservableObject {
         self.friendRequestRepository = friendRequestRepository
         self.publicProfileRepository = publicProfileRepository
         self.myUid = myUid
+        self.focusedFriendID = Self.loadFocusedFriendID(myUid: myUid)
         startObserving()
     }
 
@@ -235,6 +240,10 @@ final class FriendsViewModel: ObservableObject {
         if !isObserving {
             friends.removeAll { $0.id == friend.id }
         }
+        // フォーカス対象を削除したらフォーカスモードも解除する（存在しない相手を指し続けないため）
+        if focusedFriendID == friend.id {
+            clearFocus()
+        }
         do {
             try await repository.delete(friendID: friend.id)
         } catch {
@@ -243,11 +252,70 @@ final class FriendsViewModel: ObservableObject {
         }
     }
 
+    // MARK: - フォーカスモード
+
+    /// 現在フォーカス中の友達（設定中かつ一覧に存在する場合のみ）。
+    var focusedFriend: Friend? {
+        guard let focusedFriendID else { return nil }
+        return friends.first { $0.id == focusedFriendID }
+    }
+
+    /// 指定の友達が現在フォーカス対象かどうか。
+    func isFocused(_ friend: Friend) -> Bool {
+        focusedFriendID == friend.id
+    }
+
+    /// フォーカスモードを指定の友達に設定する（対象は常に1人。既存の対象は置き換わる）。
+    func setFocus(_ friend: Friend) {
+        focusedFriendID = friend.id
+        persistFocusedFriendID()
+    }
+
+    /// フォーカスモードを解除する。
+    func clearFocus() {
+        focusedFriendID = nil
+        persistFocusedFriendID()
+    }
+
+    /// フォーカス対象なら解除、そうでなければ設定するトグル。
+    func toggleFocus(_ friend: Friend) {
+        if isFocused(friend) {
+            clearFocus()
+        } else {
+            setFocus(friend)
+        }
+    }
+
+    /// マッチ判定の候補となる友達。フォーカスモード中は対象の1人のみに絞る。
+    /// これにより、Likeしてもフォーカス対象以外とはマッチが成立しなくなる。
+    private var matchCandidates: [Friend] {
+        guard let focusedFriendID else { return friends }
+        return friends.filter { $0.id == focusedFriendID }
+    }
+
+    /// フォーカス設定の`UserDefaults`キー（自分のuid単位。未ログイン時は共通キー）。
+    private static func focusStorageKey(myUid: String?) -> String {
+        "focusedFriendID_\(myUid ?? "anonymous")"
+    }
+
+    private static func loadFocusedFriendID(myUid: String?) -> String? {
+        UserDefaults.standard.string(forKey: focusStorageKey(myUid: myUid))
+    }
+
+    private func persistFocusedFriendID() {
+        let key = Self.focusStorageKey(myUid: myUid)
+        if let focusedFriendID {
+            UserDefaults.standard.set(focusedFriendID, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
     /// 指定したお店を「同じくLikeしている」友達を返す（複数いれば全員）。
     /// Likeした瞬間の「友達とのマッチ」判定に使う。ジャンルではなく同一のお店（shop.id）で判定するため、
     /// 友達が同じお店をLikeしている時だけマッチが成立する。
     func friendsMatching(shop: Shop) -> [Friend] {
-        friends.filter { $0.likedShopIDs.contains(shop.id) }
+        matchCandidates.filter { $0.likedShopIDs.contains(shop.id) }
     }
 
     /// Likeした瞬間に、相手の最新の公開プロフィールをサーバーから取得して「同じお店をLike済みの友達」を返す。
@@ -256,11 +324,13 @@ final class FriendsViewModel: ObservableObject {
     /// 相手がLikeしても即座には反映されない。ここで各友達の`publicProfiles`を都度取得することで、
     /// Likeした時点の相手のLike状況でリアルタイムに判定する。取得失敗時はキャッシュにフォールバックする。
     func friendsMatchingLive(shop: Shop) async -> [Friend] {
-        guard let publicProfileRepository, !friends.isEmpty else {
+        // フォーカスモード中は対象1人のみを候補にする（他の友達とはマッチさせない）
+        let candidates = matchCandidates
+        guard let publicProfileRepository, !candidates.isEmpty else {
             return friendsMatching(shop: shop)
         }
         var matched: [Friend] = []
-        for friend in friends {
+        for friend in candidates {
             do {
                 let profile = try await publicProfileRepository.fetchProfile(uid: friend.id, source: .server)
                 if Set(profile?.likedShopIDs ?? []).contains(shop.id) {

@@ -34,6 +34,9 @@ struct FriendsListView: View {
                 } else {
                     VStack(spacing: 0) {
                         searchBar
+                        if let focusedFriend = friendsViewModel.focusedFriend {
+                            focusBanner(focusedFriend)
+                        }
                         List {
                             if !friendsViewModel.incomingRequests.isEmpty {
                                 Section("友達申請") {
@@ -90,21 +93,92 @@ struct FriendsListView: View {
         }
     }
 
-    /// 友達1行。ログイン中はチャットへ遷移する。
+    /// 友達1行。ログイン中はチャットへ遷移する。長押しでフォーカスモードを設定/解除できる。
     @ViewBuilder
     private func friendLink(_ friend: Friend) -> some View {
         let summary = friendsViewModel.currentUid.flatMap {
             chatSummaries.summary(forFriendID: friend.id, myUid: $0)
         }
-        if let myUid = friendsViewModel.currentUid {
-            NavigationLink {
-                ChatView(friend: friend, myUid: myUid, restaurantViewModel: restaurantViewModel)
+        let isFocused = friendsViewModel.isFocused(friend)
+        Group {
+            if let myUid = friendsViewModel.currentUid {
+                NavigationLink {
+                    ChatView(friend: friend, myUid: myUid, restaurantViewModel: restaurantViewModel)
+                } label: {
+                    FriendChatRow(friend: friend, summary: summary, isFocused: isFocused)
+                }
+            } else {
+                FriendChatRow(friend: friend, summary: summary, isFocused: isFocused)
+            }
+        }
+        .contextMenu {
+            focusMenuButton(for: friend, isFocused: isFocused)
+        } preview: {
+            focusContextPreview(for: friend, isFocused: isFocused)
+        }
+    }
+
+    /// 長押し時に浮き上がるプレビューカード（iPhoneのアプリ長押しメニューのような見た目）。
+    /// 誰に対する操作かを大きく見せ、その下にメニューボタンが並ぶ。
+    private func focusContextPreview(for friend: Friend, isFocused: Bool) -> some View {
+        VStack(spacing: 12) {
+            FriendAvatarCircle(imageData: friend.avatarImageData, emoji: friend.avatarEmoji, size: 72)
+            Text(friend.name)
+                .font(.headline)
+            HStack(spacing: 5) {
+                Image(systemName: "scope")
+                Text(isFocused ? "フォーカスモード対象です" : "この友達とだけマッチング")
+            }
+            .font(.footnote)
+            .foregroundStyle(isFocused ? .orange : .secondary)
+        }
+        .padding(24)
+        .frame(width: 240)
+    }
+
+    /// 長押しメニューのフォーカスモード切り替えボタン。
+    @ViewBuilder
+    private func focusMenuButton(for friend: Friend, isFocused: Bool) -> some View {
+        if isFocused {
+            Button {
+                friendsViewModel.clearFocus()
             } label: {
-                FriendChatRow(friend: friend, summary: summary)
+                Label("フォーカスモードを解除", systemImage: "scope")
             }
         } else {
-            FriendChatRow(friend: friend, summary: summary)
+            Button {
+                friendsViewModel.setFocus(friend)
+            } label: {
+                Label("フォーカスモードを設定", systemImage: "scope")
+            }
         }
+    }
+
+    /// フォーカスモード中に一覧上部へ出す案内バナー。切り忘れを防ぐため常に見える位置に置き、解除もここからできる。
+    private func focusBanner(_ friend: Friend) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "scope")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("フォーカスモード中")
+                    .font(.footnote.weight(.semibold))
+                Text("\(friend.name)さんとだけマッチングします")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button("解除") {
+                friendsViewModel.clearFocus()
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.orange)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
+        .padding(.bottom, 4)
     }
 
     /// 独自の検索バー。`.searchable` はカスタムタブバーと干渉するため使わず、LikesView同様に自作する。
@@ -215,15 +289,25 @@ struct FriendsListView: View {
 struct FriendChatRow: View {
     let friend: Friend
     let summary: ChatSummary?
+    /// フォーカスモードの対象ならバッジを表示する。
+    var isFocused: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
             FriendAvatarCircle(imageData: friend.avatarImageData, emoji: friend.avatarEmoji, size: 56)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(friend.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(friend.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    if isFocused {
+                        Image(systemName: "scope")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.orange)
+                            .accessibilityLabel("フォーカスモード対象")
+                    }
+                }
                 Text(previewText)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
