@@ -169,7 +169,8 @@ final class RestaurantViewModel: ObservableObject {
     func applyRecommendation(userPrompt: String?) async {
         guard !isLoading else { return }
         isRecommending = true
-        let criteria = await recommendationEngine.recommend(userPrompt: userPrompt, likedShops: favoriteShops)
+        let aiCriteria = await recommendationEngine.recommend(userPrompt: userPrompt, likedShops: favoriteShops)
+        let criteria = seedWithInitialPreferenceIfNeeded(aiCriteria)
         recommendationReason = criteria?.reason
         isRecommending = false
 
@@ -245,6 +246,25 @@ final class RestaurantViewModel: ObservableObject {
     /// - 料理テーマ: genreCodesあり。こだわりは補助で、末尾から緩める。
     /// - シチュエーションテーマ（デート等）: genreCodes空（＝全ジャンル）。**こだわりが主役**で、
     ///   個室・夜景・コース…をANDで効かせ、件数が減ったら重要度の低い順（末尾）に1つずつ緩める。
+    /// コールドスタート（いいね履歴なし）で、AIが具体ジャンルを出せなかった時に、
+    /// 新規登録で選んだ「好きなジャンル（初期嗜好）」を検索の初期値として使う。
+    /// 履歴が貯まれば recommend() の判断（履歴＞初期嗜好）が優先され、自然に上書きされる。
+    private func seedWithInitialPreferenceIfNeeded(_ criteria: RecommendationCriteria?) -> RecommendationCriteria? {
+        // 履歴がある、または既に具体ジャンルが決まっているならそのまま使う
+        guard favoriteShops.isEmpty, (criteria?.genreCodes.isEmpty ?? true) else { return criteria }
+        let prefs = UserProfile.shared.preferredGenreCodes
+        guard !prefs.isEmpty else { return criteria }
+        // genreCodes は最大3件想定。broad（複数ジャンルを加重マージ）で好みを広めに出す。
+        let codes = Array(prefs.prefix(3))
+        return RecommendationCriteria(
+            genreCodes: codes,
+            isBroad: codes.count > 1,
+            keyword: criteria?.keyword,
+            particulars: criteria?.particulars ?? [],
+            reason: criteria?.reason ?? "登録した好みのジャンルから探しています"
+        )
+    }
+
     private func relaxationLadder(for criteria: RecommendationCriteria?) -> [AppliedFilter] {
         guard let criteria else { return [.neutral] }
         let codes = criteria.genreCodes
