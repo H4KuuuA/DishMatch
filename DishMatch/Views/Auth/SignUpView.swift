@@ -35,6 +35,9 @@ struct SignUpView: View {
     private enum Field { case nickname, email, password, passwordConfirm }
     private enum Step { case account, genres }
 
+    /// 好きなジャンルは最大3つまで選べる（AIおすすめの genreCodes も最大3件のため揃える）。
+    private let maxGenreSelection = 3
+
     private var passwordsMatch: Bool {
         !password.isEmpty && password == passwordConfirm
     }
@@ -158,11 +161,13 @@ struct SignUpView: View {
                 Text("好きなジャンルを選ぼう")
                     .font(.title3.bold())
                     .foregroundStyle(Color("FC"))
-                Text("選んでおくと、最初のおすすめがあなた好みに。\nあとでいつでも変えられます。")
+                Text("最初のおすすめがあなた好みに。あとで変えられます。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
+
+            selectionProgress
 
             genreChips
 
@@ -173,6 +178,24 @@ struct SignUpView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// 好きなジャンルの選択進捗。ドット（選んだ数だけ点灯）＋「N/3」で、控えめに経過を示す。
+    private var selectionProgress: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 5) {
+                ForEach(0..<maxGenreSelection, id: \.self) { index in
+                    Circle()
+                        .fill(index < selectedGenreCodes.count ? Color.orange : Color.orange.opacity(0.18))
+                        .frame(width: 8, height: 8)
+                }
+            }
+            Text("\(selectedGenreCodes.count)/\(maxGenreSelection)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .animation(.easeInOut(duration: 0.15), value: selectedGenreCodes.count)
     }
 
     /// ジャンルのトグルチップ一覧（読み込み中はスピナー）。
@@ -193,13 +216,15 @@ struct SignUpView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// ジャンル1つ分のトグルチップ。
+    /// ジャンル1つ分のトグルチップ。最大 `maxGenreSelection` 件まで。上限到達時は未選択チップを無効化する。
     private func genreChip(_ genre: GenreOption) -> some View {
         let isSelected = selectedGenreCodes.contains(genre.code)
+        // 上限に達したら、未選択のチップは選べない（淡色＋タップ無効）。
+        let isDisabled = !isSelected && selectedGenreCodes.count >= maxGenreSelection
         return Button {
             if isSelected {
                 selectedGenreCodes.remove(genre.code)
-            } else {
+            } else if selectedGenreCodes.count < maxGenreSelection {
                 selectedGenreCodes.insert(genre.code)
             }
         } label: {
@@ -210,8 +235,11 @@ struct SignUpView: View {
                 .padding(.horizontal, 14)
                 .background(isSelected ? Color.orange : Color("FC").opacity(0.06), in: Capsule())
                 .overlay(Capsule().stroke(Color.orange.opacity(isSelected ? 0 : 0.2), lineWidth: 1))
+                .opacity(isDisabled ? 0.35 : 1)
         }
         .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .animation(.easeInOut(duration: 0.15), value: isDisabled)
     }
 
     /// アイコン選択。タップで写真ライブラリから選び、選択後はプレビューを表示する。
