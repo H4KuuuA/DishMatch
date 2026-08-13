@@ -35,9 +35,10 @@ struct LoginView: View {
                 keyboardType: .emailAddress,
                 textContentType: .username,
                 submitLabel: .next,
-                onSubmit: { focusedField = .password }
+                onSubmit: { focusedField = .password },
+                focus: $focusedField,
+                focusValue: .email
             )
-            .focused($focusedField, equals: .email)
 
             AuthTextField(
                 systemImage: "lock.fill",
@@ -46,9 +47,10 @@ struct LoginView: View {
                 isSecure: true,
                 textContentType: .password,
                 submitLabel: .go,
-                onSubmit: login
+                onSubmit: login,
+                focus: $focusedField,
+                focusValue: .password
             )
-            .focused($focusedField, equals: .password)
 
             HStack {
                 Spacer()

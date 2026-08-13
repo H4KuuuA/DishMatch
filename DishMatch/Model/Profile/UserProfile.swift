@@ -22,6 +22,9 @@ final class UserProfile: ObservableObject {
     @Published var avatarImageData: Data? { didSet { persist() } }
     /// 友達に共有して自分を追加してもらうためのID。ドキュメント初回作成時に自動生成する。
     @Published private(set) var myFriendCode: String = "" { didSet { persist() } }
+    /// 新規登録時に選んだ「好きなジャンル」のコード集合（初期嗜好）。
+    /// いいね履歴が無いコールドスタート時に、AIおすすめの検索初期値として使う。
+    @Published var preferredGenreCodes: [String] = [] { didSet { persist() } }
 
     private static let defaultNickname = "ご飯探検隊"
 
@@ -32,7 +35,7 @@ final class UserProfile: ObservableObject {
     private var isApplyingRemote = false
     /// 新規登録画面で入力された初期プロフィール。サインアップ直後の初回ドキュメント作成時に反映する。
     /// bind() が呼ぶ unbind() では消さず、apply() で使い切ったら nil に戻す。
-    private var pendingRegistration: (nickname: String, avatarImageData: Data?)?
+    private var pendingRegistration: (nickname: String, avatarImageData: Data?, preferredGenreCodes: [String])?
 
     /// 友達に公開するプロフィール（publicProfiles/friendCodes）の書き込み先
     private let publicProfileRepository = PublicProfileRepository()
@@ -47,9 +50,9 @@ final class UserProfile: ObservableObject {
 
     /// 新規登録画面で入力した名前・アイコンを、サインアップ直後の初回同期で反映させるために事前登録する。
     /// `bind`（＝Firestore同期開始）より前に呼ぶ想定。空名は既定値にフォールバックする。
-    func stageRegistration(nickname: String, avatarImageData: Data?) {
+    func stageRegistration(nickname: String, avatarImageData: Data?, preferredGenreCodes: [String] = []) {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        pendingRegistration = (trimmed.isEmpty ? Self.defaultNickname : trimmed, avatarImageData)
+        pendingRegistration = (trimmed.isEmpty ? Self.defaultNickname : trimmed, avatarImageData, preferredGenreCodes)
     }
 
     /// 事前登録した初期プロフィールを破棄する（サインアップ失敗時などに使う）。
@@ -80,6 +83,7 @@ final class UserProfile: ObservableObject {
         bio = ""
         avatarImageData = nil
         myFriendCode = ""
+        preferredGenreCodes = []
         isApplyingRemote = false
     }
 
@@ -96,6 +100,7 @@ final class UserProfile: ObservableObject {
                 isApplyingRemote = true
                 nickname = pending.nickname
                 avatarImageData = pending.avatarImageData
+                preferredGenreCodes = pending.preferredGenreCodes
                 isApplyingRemote = false
                 pendingRegistration = nil
             }
@@ -114,6 +119,7 @@ final class UserProfile: ObservableObject {
         } else {
             avatarImageData = nil
         }
+        preferredGenreCodes = data["preferredGenreCodes"] as? [String] ?? []
         let remoteFriendCode = data["myFriendCode"] as? String ?? ""
         myFriendCode = remoteFriendCode
         isApplyingRemote = false
@@ -137,6 +143,7 @@ final class UserProfile: ObservableObject {
             "nickname": nickname,
             "bio": bio,
             "myFriendCode": myFriendCode,
+            "preferredGenreCodes": preferredGenreCodes,
             "updatedAt": FieldValue.serverTimestamp()
         ]
         if let avatarImageData {
